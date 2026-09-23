@@ -24,7 +24,7 @@ export function DialogContent({ children, tone = 'neutral', locked = false, clas
   const block = (e: Event) => { if (locked) e.preventDefault() }
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] data-[state=open]:animate-overlay-in" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/70 data-[state=open]:animate-overlay-in" />
       <DialogPrimitive.Content
         aria-label={label}
         aria-describedby={undefined}

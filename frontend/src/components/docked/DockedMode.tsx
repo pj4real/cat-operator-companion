@@ -84,8 +84,8 @@ function Panel({ title, outcome, aside, children, className, tone }: {
 function ScenarioButton({ onClick, icon: Icon, children, hotkey, active }: { onClick: () => void; icon: LucideIcon; children: ReactNode; hotkey: string; active?: boolean }) {
   return (
     <button onClick={onClick}
-      className={cn('flex h-11 items-center gap-2 rounded-md border px-3 text-sm font-medium backdrop-blur-md transition-[background-color,transform] duration-150 active:scale-[0.97]',
-        active ? 'border-brand bg-brand text-brand-fg' : 'border-white/15 bg-black/60 text-white hover:bg-black/80')}>
+      className={cn('flex h-11 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.97]',
+        active ? 'border-brand bg-brand text-brand-fg' : 'border-white/15 bg-black/75 text-white hover:bg-black/90')}>
       <Icon size={15} aria-hidden />{children}<Kbd className={active ? 'border-black/30 bg-black/10 text-brand-fg' : 'border-white/20 bg-white/10 text-white/70'}>{hotkey}</Kbd>
     </button>
   )
@@ -280,7 +280,7 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
           )}
 
           {listening && (
-            <div className="absolute bottom-20 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-md border border-white/15 bg-black/75 px-5 py-3 text-white backdrop-blur-md" role="status">
+            <div className="absolute bottom-20 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-md border border-white/15 bg-black/85 px-5 py-3 text-white" role="status">
               <span className="relative flex h-3 w-3"><span className="absolute inset-0 rounded-full bg-critical" style={{ animation: 'var(--animate-pulse-ring)' }} /><span className="relative h-3 w-3 rounded-full bg-critical" /></span>
               Listening… speak in Hindi or English
             </div>
