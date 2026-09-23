@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // the morning briefing opens in a dark room: paint dark before the app loads (no white flash)
+      try { if (sessionStorage.getItem('cc_intro_done') !== '1' && !/supervisor/.test(location.hash)) document.documentElement.style.background = '#06080c' } catch (e) {}
+    </script>
     <title>Operator Companion</title>
     <meta name="theme-color" content="#ffcd11" />
     <meta name="description" content="Operator companion for Cat machines: daily tasks, safety, training, unusual behaviour and task time estimation." />

@@ -55,10 +55,6 @@ const PAGES = {
   telemetry: TelemetryAuditPage,
 }
 
-function Loading({ label }: { label: string }) {
-  return <div className="flex h-full items-center justify-center bg-bg font-mono text-sm text-fg-3" role="status">{label}…</div>
-}
-
 export default function App() {
   const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl } = useApp()
   const sim = useRef<Sim>(createSim())
@@ -103,7 +99,7 @@ export default function App() {
 
   if (device === 'docking') return <DockTransition onDone={dockDone} />
   if (device === 'docked') return <DockedMode sim={sim.current} onUndock={undock} />
-  if (briefingOpen && page === 'today') return <Suspense fallback={<Loading label="Preparing your briefing" />}><AssistantIntro onFinish={() => setBriefingOpen(false)} /></Suspense>
+  if (briefingOpen && page === 'today') return <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={() => setBriefingOpen(false)} /></Suspense>
 
   const Page = PAGES[page]
   return <AppShell><Page /></AppShell>
