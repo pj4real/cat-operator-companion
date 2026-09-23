@@ -249,7 +249,7 @@ function Truck({ truckRef }) {
   return (
     <group ref={truckRef} position={[-60, 0, -7.6]}>
       <primitive object={scene} scale={scale} rotation-y={Math.PI / 2} />
-      <Html position={[0, 4.2, 0]} center distanceFactor={28}>
+      <Html zIndexRange={[20, 0]} position={[0, 4.2, 0]} center distanceFactor={28}>
         <div className="rounded bg-black/70 px-2 py-0.5 text-[11px] text-white whitespace-nowrap">Dumper T-07</div>
       </Html>
     </group>
@@ -286,7 +286,7 @@ function Worker({ workerRef, isNew, label, position, url }) {
           <meshBasicMaterial color="#22c55e" transparent />
         </mesh>
       )}
-      <Html position={[0, 2.15, 0]} center distanceFactor={26}>
+      <Html zIndexRange={[20, 0]} position={[0, 2.15, 0]} center distanceFactor={26}>
         <div className={`rounded px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap ${isNew ? 'bg-green-500 text-black' : 'bg-black/70 text-white'}`}>{label}</div>
       </Html>
     </group>
@@ -320,7 +320,7 @@ function SiteDressing() {
       </mesh>
       {/* buried fibre route from Call Before u Dig */}
       <Line points={fibre} color="#fb923c" lineWidth={3} dashed dashSize={0.8} gapSize={0.5} />
-      <Html position={[16, 0.3, 0.9]} center distanceFactor={30}>
+      <Html zIndexRange={[20, 0]} position={[16, 0.3, 0.9]} center distanceFactor={30}>
         <div className="rounded border border-orange-400/60 bg-black/75 px-2 py-1 text-[11px] text-orange-300 whitespace-nowrap">Fibre route · 1.2 m deep · E-floor 0.9 m</div>
       </Html>
       {/* power line */}
@@ -337,7 +337,7 @@ function SiteDressing() {
         <planeGeometry args={[60, 7]} />
         <meshBasicMaterial color="#ef4444" transparent opacity={0.1} side={THREE.DoubleSide} />
       </mesh>
-      <Html position={[-12, 6.4, -20]} center distanceFactor={30}>
+      <Html zIndexRange={[20, 0]} position={[-12, 6.4, -20]} center distanceFactor={30}>
         <div className="rounded border border-red-400/60 bg-black/75 px-2 py-1 text-[11px] text-red-300 whitespace-nowrap">11 kV line · E-ceiling 6 m</div>
       </Html>
       {/* site office / shade */}

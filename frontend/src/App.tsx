@@ -9,9 +9,10 @@ import { TrainingPage } from '@/components/operator/TrainingPage'
 import { ActivityPage } from '@/components/operator/ActivityPage'
 import { FleetOverviewPage, TelemetryAuditPage } from '@/components/fleet/FleetPages'
 import { DockTransition } from '@/components/docked/DockTransition'
+import { DockedMode } from '@/components/docked/DockedMode'
 
-// three.js screens load on demand so the handheld dashboard opens fast
-const DockedMode = lazy(() => import('@/components/docked/DockedMode').then((m) => ({ default: m.DockedMode })))
+// The voice briefing's three.js orb loads on demand. The docked display is imported normally:
+// its 3D labels (drei <Html>) run their own React roots and break when mounted under a Suspense boundary.
 const AssistantIntro = lazy(() => import('@/components/operator/AssistantIntro').then((m) => ({ default: m.AssistantIntro })))
 
 // lessons generated from what actually happened in this shift
@@ -79,7 +80,7 @@ export default function App() {
   }
 
   if (device === 'docking') return <DockTransition onDone={dockDone} />
-  if (device === 'docked') return <Suspense fallback={<Loading label="Starting machine display" />}><DockedMode sim={sim.current} onUndock={undock} /></Suspense>
+  if (device === 'docked') return <DockedMode sim={sim.current} onUndock={undock} />
   if (briefingOpen && page === 'today') return <Suspense fallback={<Loading label="Preparing your briefing" />}><AssistantIntro onFinish={() => setBriefingOpen(false)} /></Suspense>
 
   const Page = PAGES[page]
