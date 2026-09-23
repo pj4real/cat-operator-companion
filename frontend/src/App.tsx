@@ -17,6 +17,8 @@ import { FleetOverviewPage, TelemetryAuditPage } from '@/components/fleet/FleetP
 import { DockTransition } from '@/components/docked/DockTransition'
 import { DockedMode } from '@/components/docked/DockedMode'
 import { StoryBar } from '@/components/shared/StoryBar'
+import { StoryCard } from '@/components/shared/StoryCard'
+import { CHAPTERS } from '@/lib/story'
 import type { StoryContext } from '@/lib/story'
 
 // The voice briefing's three.js orb loads on demand. The docked display is imported normally:
@@ -60,7 +62,7 @@ const PAGES = {
 }
 
 export default function App() {
-  const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl } = useApp()
+  const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl, storyOn, storyIndex } = useApp()
   const sim = useRef<Sim>(createSim())
   const queryClient = useQueryClient()
 
@@ -116,7 +118,7 @@ export default function App() {
   const finishBriefing = () => {
     setBriefingOpen(false)
     const st = useApp.getState()
-    if (st.storyOn && st.storyIndex === 0) st.setStory(true, 1)
+    if (st.storyOn && CHAPTERS[st.storyIndex]?.title === 'Morning briefing') st.setStory(true, st.storyIndex + 1)
   }
 
   const Page = PAGES[page]
@@ -126,5 +128,6 @@ export default function App() {
       : device === 'docked' ? <DockedMode sim={sim.current} onUndock={undock} />
         : intro ? <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={finishBriefing} /></Suspense>
           : <AppShell><Page /></AppShell>
-  return <>{screen}<StoryBar ctx={story} hidden={intro} /></>
+  const card = storyOn ? CHAPTERS[storyIndex]?.card : undefined
+  return <>{screen}{card && <StoryCard kind={card} />}<StoryBar ctx={story} hidden={intro} /></>
 }

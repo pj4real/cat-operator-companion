@@ -21,6 +21,8 @@ export interface Chapter {
   title: string
   /** audience-facing subtitle: what is happening in Ravi's day */
   caption: string
+  /** full-stage title card instead of the app */
+  card?: 'problem' | 'impact'
   enter: (ctx: StoryContext) => void
 }
 
@@ -45,6 +47,11 @@ function calm(sim: Sim) {
 }
 
 export const CHAPTERS: Chapter[] = [
+  {
+    time: '', title: 'The problem', card: 'problem',
+    caption: 'Every team got the same brief. This is the day of one operator, Ravi, on one rental Cat 320.',
+    enter: (ctx) => { ctx.setBriefingOpen(false) },
+  },
   {
     time: '06:40', title: 'Morning briefing',
     caption: 'Ravi picks up his tablet at home. Before he leaves, it briefs him in his language.',
@@ -109,5 +116,10 @@ export const CHAPTERS: Chapter[] = [
     time: '19:05', title: "The supervisor's view",
     caption: 'The same predictions, fleet-wide. Only high-severity alerts are pushed; the rest wait here.',
     enter: (ctx) => { if (ctx.isDocked()) ctx.undock(); ctx.navigate('supervisor', 'overview') },
+  },
+  {
+    time: '', title: 'Impact', card: 'impact',
+    caption: 'Fuel, safety and skills, from one model of the operator that the whole site can learn from.',
+    enter: () => {},
   },
 ]
