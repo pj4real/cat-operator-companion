@@ -6,6 +6,7 @@ import type { FleetData, FleetMachine, RiskLevel3 } from '@/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Kpi } from '@/components/ui/kpi'
 import { EmptyState } from '@/components/ui/controls'
+import { MachineThumb } from '@/components/ui/machine-thumb'
 import { ModelStatus, StatusBadge, type Tone } from '@/components/ui/status'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { TelemetryTable } from '@/components/shared/TelemetryTable'
@@ -62,9 +63,14 @@ function MachinesTable({ data }: { data: FleetData }) {
             return (
               <tr key={m.id} onClick={() => selectMachine(m.id)} aria-selected={on}
                 className={cn('cursor-pointer border-t border-border transition-colors', on ? 'bg-brand-soft/70' : 'hover:bg-surface-2')}>
-                <td className="px-3 py-3">
-                  <div className="font-mono font-medium text-fg">{m.id}</div>
-                  <div className="text-xs text-fg-3">{m.make} {m.model} · {m.kind.split(' (')[0]}</div>
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center gap-3">
+                    <MachineThumb kind={m.kind} size="sm" />
+                    <div>
+                      <div className="font-mono font-medium text-fg">{m.id}</div>
+                      <div className="text-xs text-fg-3">{m.make} {m.model} · {m.kind.split(' (')[0]}</div>
+                    </div>
+                  </div>
                 </td>
                 <td className="px-3 py-3">
                   <div className="text-fg">{m.operator.split(' (')[0]}</div>
@@ -113,6 +119,7 @@ function MachineDetail({ m }: { m: FleetMachine }) {
   const f = m.fuel_plan
   return (
     <div className="space-y-5 text-sm">
+      <MachineThumb kind={m.kind} size="hero" className="h-44 w-full" />
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-display text-[28px] leading-none font-bold text-fg">{m.id}</div>
