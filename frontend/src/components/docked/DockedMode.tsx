@@ -11,6 +11,7 @@ import type { HelpItem } from '@/data/help'
 import { hourly, machine, operator } from '@/data/demo'
 import { classifyIdle, scoreBehaviour, scoreTwin, structureIncident } from '@/lib/api'
 import { fuseRisk, latchRisk, type RiskLatch } from '@/lib/risk'
+import { incidentRules, OFFLINE_SOURCES, type FieldSource } from '@/lib/incident'
 import { DIESEL_INR, IDLE_BURN_LPH, SIM_SPEED, logEvent, siteClock, type Sim } from '@/lib/sim'
 import { isRowUnusual, ruleBasedBehaviour, type HourStats } from '@/lib/behaviour'
 import { cn, inr } from '@/lib/utils'
@@ -38,9 +39,18 @@ const ZONE: Record<Zone, { tone: Tone; label: string }> = {
 
 type Snap = Sim & { events: SimEvent[] }
 interface BlackBoxSample { t: number; dist: number; zone: Zone; working: boolean; belt: boolean; truck: boolean }
-interface Report { transcript: string; structured: Record<string, string>; live: boolean; blackbox: BlackBoxSample[] }
+interface Report {
+  transcript: string; sampleTranscript: boolean; structured: Record<string, string>
+  sources: Record<string, FieldSource>; live: boolean; blackbox: BlackBoxSample[]
+}
 
 /* ---------- presentational pieces ---------- */
+
+/** Provenance of a report field: decided by the black box / a rule, or only worded by the LLM. */
+function SourceMark({ source }: { source: FieldSource }) {
+  const text = source === 'LLM' ? 'LLM wording' : source === 'template' ? 'template' : `from ${source}`
+  return <span className={cn('ml-2 font-mono text-[10.5px]', source === 'LLM' ? 'text-info-text' : 'text-fg-3')}>{text}</span>
+}
 
 /** ISO-style tell-tale: icon + label + state, never colour alone. */
 function Telltale({ icon: Icon, label, state, tone }: { icon: LucideIcon; label: string; state: string; tone: Tone }) {
@@ -138,17 +148,21 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
   const selectHelp = (item: HelpItem | null) => { setHelpItem(item); sim.focus = item?.focus ?? null }
   const closeHelp = () => { setHelpOpen(false); selectHelp(null) }
   const blackbox = useRef<BlackBoxSample[]>([])
-  const idleEpisode = useRef(false)
+  const idleEpisode = useRef<boolean | null>(null) // seat state the current idle episode was classified with
+  const engineStartMin = useRef(7 * 60) // site clock, minutes; engine started at shift start, reset on restart
   const [risk, setRisk] = useState<RiskState>({ level: 'safe', reason: 'Belt on · swing radius clear' })
   const riskLatch = useRef<RiskLatch | null>(null)
   const twinRef = useRef<TwinScore | null>(null)
   const idleStart = useRef<number | null>(null)
   const lastIdleMin = useRef(0)
+  const engineWasOn = useRef(sim.engineOn)
 
   // read the simulation 4x per second, fuse the risk state, keep a 60 s black box
   useEffect(() => {
     const id = setInterval(() => {
       setSnap({ ...sim, events: [...sim.events] })
+      if (sim.engineOn && !engineWasOn.current) engineStartMin.current = 9 * 60 + (sim.t * SIM_SPEED) / 60
+      engineWasOn.current = sim.engineOn
 
       // current idle episode, so a restart can say how long the machine sat
       const idleNow = sim.engineOn && !sim.working && !sim.truckPresent
@@ -180,16 +194,24 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
   // idle reason from the ML model, once per idle episode
   const isIdle = snap.engineOn && !snap.working && !snap.truckPresent
   useEffect(() => {
-    if (!isIdle) { idleEpisode.current = false; return }
-    if (idleEpisode.current) return
-    idleEpisode.current = true
+    if (!isIdle) { idleEpisode.current = null; return }
+    if (idleEpisode.current === snap.beltScenario) return
+    idleEpisode.current = snap.beltScenario
     const etaMin = (sim.nextTruckEtaSec * SIM_SPEED) / 60
-    const window = { mins_since_engine_start: 190, mins_to_shift_end: 300, hour_of_day: 10.2, ambient_temp_c: 34,
-      next_truck_eta_min: etaMin, hyd_oil_temp_c: 71, engine_rpm: 1000, seat_occupied: 1, ac_on: 1 }
+    // every input comes from the sim: site clock (docked 09:00, shift 07:00-19:00), engine run time,
+    // the day's heat curve, idle rpm, and the seat (belt off during idle = operator may have left the seat)
+    const clockMin = 9 * 60 + (sim.t * SIM_SPEED) / 60
+    const hour = clockMin / 60
+    const sinceStart = clockMin - engineStartMin.current
+    const ambient = 34 + Math.min(Math.max(hour - 10, 0), 4) * 1.75 // 34 °C until 10:00, 41 °C by 14:00
+    const window = { mins_since_engine_start: +sinceStart.toFixed(1), mins_to_shift_end: +(19 * 60 - clockMin).toFixed(1),
+      hour_of_day: +hour.toFixed(2), ambient_temp_c: +ambient.toFixed(1), next_truck_eta_min: +etaMin.toFixed(1),
+      hyd_oil_temp_c: +(35 + 40 * (1 - Math.exp(-sinceStart / 15))).toFixed(1), engine_rpm: sinceStart < 12 ? 1150 : 1000,
+      seat_occupied: sim.beltScenario ? 0 : 1, ac_on: ambient >= 32 ? 1 : 0 }
     classifyIdle(window)
       .then((r) => setIdle({ ...r, etaMin }))
       .catch(() => setIdle({ reason: etaMin < 7 ? 'waiting_for_truck' : 'waste', confidence: 0.9, etaMin, live: false }))
-  }, [isIdle, sim])
+  }, [isIdle, snap.beltScenario, sim])
 
   // unusual behaviour: this shift's per-hour rates, scored every 3 s against Ravi's twin (his own usual for
   // these conditions), with the isolation forest as a second opinion. Idle counted = avoidable idle only.
@@ -248,43 +270,47 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
     const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition
     const fallback = 'Dumper peeche se aaya jab main swing kar raha tha, bahut paas tha'
     let done = false
-    const finish = (text: string) => {
+    const finish = (text: string, sampleTranscript = false) => {
       if (done) return
       done = true
       setListening(false)
       const box = blackbox.current.filter((b) => b.t > sim.t - 60)
       const minDist = Math.min(...box.map((b) => b.dist), 99)
       const machineState = box.at(-1)?.working ? 'Working (swinging)' : 'Stationary'
+      const decided = incidentRules(text, minDist, machineState)
       const ruleBased: Record<string, string> = {
         type: 'Near-miss',
-        category: /dumper|truck|tipper/i.test(text) ? 'Vehicle interaction' : /worker|aadmi|labour|person/i.test(text) ? 'Person in swing zone' : 'Other',
-        severity: minDist < 7 ? 'High' : 'Medium',
+        category: decided.category,
+        severity: decided.severity,
+        severity_basis: decided.severity_basis,
         location: 'Zone B, Bay 2 (auto from machine position)',
         machine: `${machine.model} ${machine.id}`,
         operator: operator.id,
         machine_state: machineState,
         suggested_action: 'Spotter at Bay 2 during reversing; review with dumper driver',
       }
-      const finishReport = (structured: Record<string, string>, live: boolean) => {
-        const { live: _drop, ...fields } = structured as Record<string, string> & { live?: unknown }
+      const finishReport = (structured: Record<string, unknown>, live: boolean) => {
+        const { live: _drop, sources, ...fields } = structured as Record<string, string> & { live?: unknown; sources?: Record<string, FieldSource> }
         void _drop
-        setReport({ transcript: text, structured: fields, live, blackbox: box.filter((_, i) => i % 20 === 0).slice(-6) })
-        logEvent(sim, 'warn', `Near-miss reported by voice${live ? ' · LLM structured' : ''}. Black box attached.`)
+        setReport({ transcript: text, sampleTranscript, structured: fields, sources: sources ?? OFFLINE_SOURCES, live,
+          blackbox: box.filter((_, i) => i % 20 === 0).slice(-6) })
+        logEvent(sim, 'warn', `Near-miss reported by voice${sampleTranscript ? ' (sample transcript)' : ''}${live ? ' · LLM worded' : ''}. Black box attached.`)
       }
-      // the LLM only formats what the operator said and the real black-box distance; it never decides
+      // severity/category are decided above by rules from the black box; the LLM only writes the wording
       structureIncident({ transcript: text, machine_model: machine.model, machine_id: machine.id, operator_id: operator.id, machine_state: machineState, min_dist_m: minDist })
         .then((r) => finishReport(r, true))
         .catch(() => finishReport(ruleBased, false))
     }
     setListening(true)
-    if (!Recognition) { setTimeout(() => finish(fallback), 1500); return }
+    // no microphone / recognition: use a sample transcript so the demo never stalls, and say so on the report
+    if (!Recognition) { setTimeout(() => finish(fallback, true), 1500); return }
     const rec = new Recognition()
     rec.lang = 'hi-IN'
     rec.onresult = (e) => finish(e.results[0][0].transcript)
-    rec.onerror = () => finish(fallback)
-    try { rec.start() } catch { finish(fallback); return }
+    rec.onerror = () => finish(fallback, true)
+    try { rec.start() } catch { finish(fallback, true); return }
     // some browsers expose the API but never answer (no mic, permission ignored): never hang on stage
-    setTimeout(() => finish(fallback), 8000)
+    setTimeout(() => finish(fallback, true), 8000)
   }, [listening, sim])
 
   // presenter hotkeys (keyboard-initiated, so nothing here animates)
@@ -520,12 +546,16 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
               <Mic size={20} className="text-brand" aria-hidden />
               <DialogTitle className="font-display text-2xl font-bold">Near-miss report</DialogTitle>
               <OutcomeTag>Incident logging</OutcomeTag>
-              <span className={cn('ml-auto font-mono text-[11px]', report.live ? 'text-good-text' : 'text-fg-3')}>{report.live ? '● LLM structured' : '○ rule-based'}</span>
+              <span className={cn('ml-auto font-mono text-[11px]', report.live ? 'text-good-text' : 'text-fg-3')}>{report.live ? '● rules + LLM wording' : '○ rules only (LLM offline)'}</span>
             </div>
             <blockquote className="mt-4 rounded-md border-l-4 border-brand bg-surface-2 p-3 text-[15px] text-fg-2 italic">“{report.transcript}”</blockquote>
+            {report.sampleTranscript && (
+              <p className="mt-1.5 font-mono text-[11px] text-warning-text">Sample transcript (no microphone): speech recognition unavailable</p>
+            )}
             <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
               {Object.entries(report.structured).map(([k, v]) => (
-                <div key={k} className="contents"><dt className="label-caps pt-0.5 text-[11px] text-fg-3">{k.replace(/_/g, ' ')}</dt><dd className="text-fg">{String(v)}</dd></div>
+                <div key={k} className="contents"><dt className="label-caps pt-0.5 text-[11px] text-fg-3">{k.replace(/_/g, ' ')}</dt>
+                  <dd className="text-fg">{String(v)}{report.sources[k] && <SourceMark source={report.sources[k]} />}</dd></div>
               ))}
             </dl>
             <div className="label-caps mt-5 text-fg-3">Black box · last 60 s</div>

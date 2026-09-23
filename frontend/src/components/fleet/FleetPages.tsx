@@ -164,6 +164,7 @@ function MachineDetail({ m }: { m: FleetMachine }) {
 
       <section>
         <h3 className="label-caps mb-2 text-fg-3">Idle today, by reason</h3>
+        <p className="mb-2 text-[12px] text-fg-3">Meter total, split by the idle-reason model over 5-min windows</p>
         <IdleStack m={m} className="h-3" />
         <dl className="mt-2 space-y-1">
           {IDLE_REASONS.map((r) => (
@@ -240,7 +241,7 @@ export function FleetOverviewPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi icon={Gauge} label="Utilization" value={k.utilization_pct} unit="%" sub={`${k.cycles} load cycles today`} />
         <Kpi icon={Timer} label="Idle" value={k.idle_pct} unit="%" sub={`${k.idle_justified_pct}% had a reason · ${k.idle_waste_h} h waste`} outcome="Excessive idling" />
-        <Kpi icon={Fuel} label="Fuel today · est." value={k.fuel_used_l} unit="L" sub={`≈ ${k.co2_kg.toLocaleString('en-IN')} kg CO₂ · ${inr(k.fuel_used_l * 90)}`} />
+        <Kpi icon={Fuel} label="Fuel today · model est." value={k.fuel_used_l} unit="L" sub={`≈ ${k.co2_kg.toLocaleString('en-IN')} kg CO₂ · ${inr(k.fuel_used_l * 90)}`} />
         <Kpi icon={CircleDot} label="Seatbelt violations" value={k.seatbelt_violations} valueClassName={k.seatbelt_violations ? 'text-serious-text' : undefined}
           sub="engine running, belt off" outcome="Seatbelt compliance" />
       </div>
