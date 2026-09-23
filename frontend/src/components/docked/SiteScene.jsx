@@ -12,7 +12,7 @@ import {
   useAnimations,
 } from '@react-three/drei'
 import * as THREE from 'three'
-import { truckPhase, logEvent } from '../lib/sim'
+import { truckPhase, logEvent } from '@/lib/sim'
 
 const YELLOW = '#f2b705'
 const DARK = '#2b2f35'

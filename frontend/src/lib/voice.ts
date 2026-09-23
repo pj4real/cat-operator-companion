@@ -2,9 +2,11 @@
 // server-side); falls back to the browser's own speech synthesis if the key
 // isn't configured or the server is unreachable, so narration never silently
 // does nothing. onAmplitude(0..1) drives the voice orb in real time.
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_BASE as BASE } from '@/lib/api'
 
-export function speak(text, { onAmplitude, lang = 'en-IN' } = {}) {
+type AmpFn = (v: number) => void
+
+export function speak(text: string, { onAmplitude, lang = 'en-IN' }: { onAmplitude?: AmpFn; lang?: string } = {}): Promise<{ live: boolean }> {
   return elevenSpeak(text, onAmplitude).catch(() => browserSpeak(text, lang, onAmplitude))
 }
 
@@ -12,10 +14,10 @@ export function stopSpeaking() {
   window.speechSynthesis?.cancel()
 }
 
-async function elevenSpeak(text, onAmplitude) {
+async function elevenSpeak(text: string, onAmplitude?: AmpFn) {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 8000)
-  let res
+  let res: Response
   try {
     res = await fetch(`${BASE}/speak`, {
       method: 'POST',
@@ -37,11 +39,13 @@ async function elevenSpeak(text, onAmplitude) {
   return { live: true }
 }
 
-function playWithAnalyser(audio, onAmplitude) {
-  return new Promise((resolve) => {
-    let ctx, raf
+function playWithAnalyser(audio: HTMLAudioElement, onAmplitude?: AmpFn) {
+  return new Promise<void>((resolve) => {
+    let ctx: AudioContext | undefined
+    let raf = 0
     try {
-      ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      ctx = new Ctx()
       const src = ctx.createMediaElementSource(audio)
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 256
@@ -65,14 +69,15 @@ function playWithAnalyser(audio, onAmplitude) {
   })
 }
 
-function browserSpeak(text, lang, onAmplitude) {
-  return new Promise((resolve) => {
+function browserSpeak(text: string, lang: string, onAmplitude?: AmpFn) {
+  return new Promise<{ live: boolean }>((resolve) => {
     const synth = window.speechSynthesis
     if (!synth) { resolve({ live: false }); return }
     const utter = new SpeechSynthesisUtterance(text)
     utter.lang = lang
     utter.rate = 0.98
-    let raf, settled = false
+    let raf = 0
+    let settled = false
     const pulse = () => { onAmplitude?.(0.3 + Math.random() * 0.3); raf = requestAnimationFrame(pulse) }
     if (onAmplitude) pulse()
     const done = () => {
