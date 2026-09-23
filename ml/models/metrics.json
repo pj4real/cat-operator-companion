@@ -2,32 +2,42 @@
   "task_time": {
     "model_mae_min": 7.09,
     "planner_mae_min": 19.84,
-    "p10_p90_coverage": 0.732,
+    "p10_p90_coverage": 0.737,
     "test_rows": 601
   },
   "idle_reason": {
-    "accuracy": 0.986,
+    "accuracy": 0.983,
     "top_features": [
       [
         "next_truck_eta_min",
-        0.384
+        0.386
       ],
       [
         "mins_to_shift_end",
-        0.147
+        0.15
       ],
       [
         "mins_since_engine_start",
-        0.11
+        0.111
       ],
       [
         "ambient_temp_c",
-        0.107
+        0.101
       ]
     ]
   },
   "unusual_behaviour": {
-    "precision": 0.963,
-    "recall": 0.825
+    "precision": 1.0,
+    "recall": 0.885
+  },
+  "machine_health": {
+    "roc_auc": 0.825,
+    "precision_top10pct": 0.75,
+    "base_failure_rate": 0.165
+  },
+  "fuel_rate": {
+    "model_mae_lph": 0.87,
+    "flat_rate_mae_lph": 2.81,
+    "flat_rate_lph": 17.38
   }
 }

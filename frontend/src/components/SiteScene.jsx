@@ -252,7 +252,10 @@ function Controller({ sim, parts, truckRef, workerRef, onZone }) {
     if (sim.engineOn && !sim.working) {
       sim.idleSec += dt * 15
       sim.idleFuelL += (3.8 * dt * 15) / 3600
+      // same rule as the switch-off nudge: truck more than 3 site-minutes away = avoidable idle
+      if (!tp.present && (tp.eta * 15) / 60 > 3) sim.idleWasteSec += dt * 15
     }
+    if (sim.engineOn && !sim.seatbelt) sim.beltOffSec += dt * 15
 
     // excavator pose
     if (sim.working) {

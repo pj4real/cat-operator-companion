@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Fuel, Gauge, Thermometer, Timer, Truck, ShieldAlert, ShieldCheck, Power, Mic, UserRound, Unplug, AlertTriangle, CircleDot } from 'lucide-react'
 import SiteScene from './SiteScene'
 import { machine, operator } from '../data/demo'
-import { classifyIdle } from '../lib/api'
-import { SIM_SPEED, DIESEL_INR, logEvent } from '../lib/sim'
+import { classifyIdle, scoreBehaviour } from '../lib/api'
+import { SIM_SPEED, DIESEL_INR, IDLE_BURN_LPH, logEvent } from '../lib/sim'
+import { LiveBadge, OutcomeTag } from './ui'
 
 const IDLE_TEXT = {
   waiting_for_truck: 'Waiting for truck',
@@ -63,6 +64,33 @@ export default function DockedMode({ sim, onUndock }) {
       .then((r) => setIdle({ ...r, etaMin }))
       .catch(() => setIdle({ reason: etaMin < 7 ? 'waiting_for_truck' : 'waste', confidence: 0.9, etaMin, live: false }))
   }, [isIdle, sim])
+
+  // unusual behaviour: this shift's per-hour rates, scored every 3 s by the isolation forest + rules.
+  // Idle counted = avoidable idle only; waiting with a truck close is justified, not unusual.
+  const [beh, setBeh] = useState(null)
+  useEffect(() => {
+    const score = () => {
+      const hrs = (sim.t * SIM_SPEED) / 3600
+      if (hrs < 0.1) return
+      const perHour = (x) => x / hrs
+      const cycles = Math.round(perHour(sim.cycles))
+      const idle = Math.min(perHour(sim.idleWasteSec / 60), 60)
+      const hour = { fuel_l: +(0.3 * cycles + (idle / 60) * IDLE_BURN_LPH).toFixed(1), load_cycles: cycles, idle_min: +idle.toFixed(1),
+        seatbelt_off_min: +Math.min(perHour(sim.beltOffSec / 60), 60).toFixed(1), harsh_swings: 1, raised_bucket_travel: 0 }
+      scoreBehaviour(hour)
+        .then((r) => setBeh({ ...r, hour }))
+        .catch(() => {
+          const reasons = []
+          if (hour.idle_min > 40 && hour.load_cycles <= 3) reasons.push(`Idle ${hour.idle_min.toFixed(0)} min with only ${hour.load_cycles} load cycles`)
+          if (hour.seatbelt_off_min > 5) reasons.push(`Seatbelt off for ${hour.seatbelt_off_min.toFixed(0)} min while engine running`)
+          setBeh({ unusual: false, reasons, hour, live: false })
+        })
+    }
+    score()
+    const id = setInterval(score, 3000)
+    return () => clearInterval(id)
+  }, [sim])
+  const behFlag = beh && (beh.unusual || beh.reasons.length > 0)
 
   const etaMin = (snap.nextTruckEtaSec * SIM_SPEED) / 60
   const idleMin = snap.idleSec / 60
@@ -156,7 +184,7 @@ export default function DockedMode({ sim, onUndock }) {
           </div>
 
           <div className={`rounded-xl border p-3 ${isIdle ? 'border-warn/60 bg-warn/10' : 'border-line bg-black/20'}`}>
-            <div className="text-[11px] uppercase tracking-wider text-muted">Idle today</div>
+            <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">Idle today <OutcomeTag>Excessive idling</OutcomeTag></div>
             <div className="flex items-baseline gap-3">
               <div className="text-2xl font-bold">{idleMin.toFixed(1)} min</div>
               <div className="text-sm text-muted">{snap.idleFuelL.toFixed(2)} L · ₹{(snap.idleFuelL * DIESEL_INR).toFixed(0)}</div>
@@ -174,15 +202,30 @@ export default function DockedMode({ sim, onUndock }) {
             )}
           </div>
 
+          <div className={`rounded-xl border p-3 text-sm ${behFlag ? 'border-warn/60 bg-warn/10' : 'border-line bg-black/20'}`}>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[11px] uppercase tracking-wider text-muted">Unusual behaviour · per hour</span>
+              <LiveBadge live={beh?.live} />
+            </div>
+            {!beh ? <div className="text-xs text-muted">Scoring after the first few minutes…</div> : (
+              <>
+                <div className={`font-bold ${behFlag ? 'text-warn' : 'text-safe'}`}>{behFlag ? 'Unusual for you' : 'Normal for you'}
+                  <span className="ml-2 text-[11px] font-normal text-muted">model {beh.unusual ? 'flags' : 'ok'}{beh.score !== undefined ? ` · score ${beh.score}` : ''}</span></div>
+                {beh.reasons.map((r) => <div key={r} className="text-xs text-slate-300">· {r}</div>)}
+                <div className="mt-1 text-[10px] text-muted">{beh.hour.load_cycles} cycles/h · {beh.hour.idle_min} min avoidable idle/h · belt off {beh.hour.seatbelt_off_min} min/h</div>
+              </>
+            )}
+          </div>
+
           <div className="rounded-xl border border-line bg-black/20 p-3 text-sm">
-            <div className="mb-2 text-[11px] uppercase tracking-wider text-muted">Limits from site data</div>
+            <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">Limits from site data <OutcomeTag>Proximity hazards</OutcomeTag></div>
             <div className="flex items-center justify-between"><span>E-floor (fibre at 1.2 m)</span><b className="text-orange-300">0.9 m</b></div>
             <div className="flex items-center justify-between"><span>E-ceiling (11 kV line)</span><b className="text-red-300">6.0 m</b></div>
             <div className="flex items-center justify-between"><span>Swing radius watch</span><b className={snap.zone === 'clear' ? 'text-safe' : snap.zone === 'caution' ? 'text-warn' : 'text-danger'}>{snap.zone}</b></div>
           </div>
 
           <div className="min-h-0 flex-1 rounded-xl border border-line bg-black/20 p-3">
-            <div className="mb-2 text-[11px] uppercase tracking-wider text-muted">Event log</div>
+            <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">Event log <OutcomeTag>Incident logging</OutcomeTag></div>
             <ul className="space-y-1.5">
               {snap.events.map((e) => (
                 <li key={e.id} className="flex gap-2 text-xs">
@@ -208,7 +251,7 @@ export default function DockedMode({ sim, onUndock }) {
 
       {snap.haltReason === 'seatbelt' && (
         <Modal tone="danger">
-          <div className="mb-2 flex items-center gap-2 text-danger"><ShieldAlert size={22} /><b className="text-lg">Restart guard</b></div>
+          <div className="mb-2 flex items-center gap-2 text-danger"><ShieldAlert size={22} /><b className="text-lg">Restart guard</b><span className="ml-auto"><OutcomeTag>Seatbelt compliance</OutcomeTag></span></div>
           <p className="text-sm text-slate-300">The truck is here and work is about to restart after {idleMin.toFixed(0)} min idle, but your seatbelt is off. In your data, unbuckling happens during long idles and carries into the restart.</p>
           <button onClick={fasten} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-safe py-2.5 font-bold text-black"><ShieldCheck size={18} />Seatbelt fastened</button>
         </Modal>
@@ -216,7 +259,7 @@ export default function DockedMode({ sim, onUndock }) {
 
       {report && (
         <Modal>
-          <div className="mb-2 flex items-center gap-2"><Mic size={18} className="text-cat" /><b>Near-miss report</b></div>
+          <div className="mb-2 flex items-center gap-2"><Mic size={18} className="text-cat" /><b>Near-miss report</b><span className="ml-auto"><OutcomeTag>Incident logging</OutcomeTag></span></div>
           <div className="rounded-lg bg-black/30 p-2 text-sm italic text-slate-300">"{report.transcript}"</div>
           <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
             {Object.entries(report.structured).map(([k, v]) => (
