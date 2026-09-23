@@ -1,4 +1,5 @@
 // Ravi's demo day. One operator, one machine (Cat 320 excavator, EXC001).
+import type { FuelPlan, HealthResult, Lesson, Task } from '@/types'
 export const operator = {
   id: 'OP1001',
   name: 'Ravi Kumar',
@@ -31,14 +32,14 @@ export const machine = {
   healthDay: { hyd_oil_temp_max: 79, coolant_temp_max: 88, engine_load_pct: 62, hrs_since_oil_change: 210,
     sos_iron_ppm: 29, sos_silicon_ppm: 24, sos_soot_pct: 0.7, sos_water_pct: 0.04, idle_pct: 30,
     fault_codes_7d: 1, machine_age_yrs: 4 },
-  healthFallback: { risk_pct: 46, level: 'watch', component: 'Engine air intake',
+  healthFallback: <HealthResult>{ risk_pct: 46, level: 'watch', component: 'Engine air intake',
     action: 'Check air filter and intake hoses: dust is getting into the engine',
     reasons: [{ factor: 'Silicon in oil', value: '24 ppm', usual: '8', points: 41 }] },
-  fuelFallback: { runs_out_at: '14:43', refuel_before: 'T103', litres_planned: 71.1, co2_kg: 191, fuel_left_end_l: 6.9 },
+  fuelFallback: <FuelPlan>{ runs_out_at: '14:43', refuel_before: 'T103', litres_planned: 71.1, co2_kg: 191, fuel_left_end_l: 6.9 },
 }
 
 // Tasks for today. The P10/P50/P90 comes from the ML API (fallback values below).
-export const tasks = [
+export const tasks: Task[] = [
   {
     id: 'T101', title: 'Trenching for OFC duct, Zone B', zone: 'B', start: '07:30',
     input: { task_type: 'Trenching', weather: 'Cloudy', operator_skill: 'Intermediate', soil: 'Clay',
@@ -61,14 +62,14 @@ export const tasks = [
   },
 ]
 
-export const briefing = [
-  { icon: 'cable', text: 'Fibre route (Call Before u Dig) at 1.2 m in Zone B. Depth limit will be set to 0.9 m.' },
-  { icon: 'zap', text: '11 kV line over the haul road. Height limit 6 m near the poles.' },
-  { icon: 'users', text: '2 new labourers on site (Day 3). Shown with a green ring on your map.' },
-  { icon: 'sun', text: 'Heat index 41 °C at 14:00. Heat rest 13:00–13:40, engine off, shade at Bay 1.' },
+export const briefing: { icon: 'cable' | 'zap' | 'users' | 'sun'; text: string }[] = [
+  { icon: 'cable', text: "There's a fibre line in Zone B, about a metre down. Stay above 0.9 m there." },
+  { icon: 'zap', text: 'A power line runs over the haul road. Keep the boom under 6 m near the poles.' },
+  { icon: 'users', text: "Two new workers started this week. You'll see them with a green ring on the map." },
+  { icon: 'sun', text: "It'll hit 41°C around 2pm. Take your heat break 1 to 1:40, engine off, shade at Bay 1." },
 ]
 
-export const lessons = [
+export const lessons: Lesson[] = [
   { title: 'Restart after a long idle: seat, belt, look', from: 'Yesterday 10:35 · belt off at restart', mins: 1.5, done: false },
   { title: 'Loading on a slope: bucket low while tracking', from: 'Yesterday 15:10 · travel with raised bucket', mins: 2, done: false },
   { title: 'Working near buried utilities', from: 'Site rule · Zone B', mins: 3, done: true },
@@ -116,4 +117,11 @@ export const hourly = [
   { time: '10:00', fuel: 3.8, cycles: 2, idle: 55, belt: 'Unfastened', alert: 'Yes' },
   { time: '14:00', fuel: 6.1, cycles: 10, idle: 15, belt: 'Fastened', alert: 'No' },
   { time: '2025-05-02 09:00', fuel: 2.0, cycles: 1, idle: 60, belt: 'Unfastened', alert: 'Yes' },
+]
+
+// Instructor assessment slots at the site training cabin (Training hub → book an instructor)
+export const instructorSlots = [
+  { id: 's1', day: 'Sat 26 Sep', time: '08:00', instructor: 'K. Murugan', topic: 'Level 3 assessment · trenching near utilities' },
+  { id: 's2', day: 'Sat 26 Sep', time: '15:00', instructor: 'K. Murugan', topic: 'Level 3 assessment · trenching near utilities' },
+  { id: 's3', day: 'Mon 28 Sep', time: '17:30', instructor: 'P. Iyer', topic: 'Simulator · swing control with a spotter' },
 ]

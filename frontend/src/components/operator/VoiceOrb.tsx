@@ -1,13 +1,16 @@
-import { useRef } from 'react'
+import { useRef, type ComponentRef, type MutableRefObject } from 'react'
+import type { Mesh } from 'three'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { MeshDistortMaterial, Sphere } from '@react-three/drei'
 
 // amplitude is a ref (0..1), updated per animation frame from real playback
 // data (see lib/voice.js) -- not a canned loop, so the orb genuinely tracks
 // what's being said.
-function OrbMesh({ amplitude, active }) {
-  const mat = useRef(null)
-  const mesh = useRef(null)
+type Amp = MutableRefObject<number>
+
+function OrbMesh({ amplitude, active }: { amplitude: Amp; active: boolean }) {
+  const mat = useRef<ComponentRef<typeof MeshDistortMaterial>>(null)
+  const mesh = useRef<Mesh>(null)
   useFrame((state, dt) => {
     const amp = amplitude.current
     const targetDistort = active ? 0.18 + amp * 0.55 : 0.08
@@ -22,7 +25,7 @@ function OrbMesh({ amplitude, active }) {
     <Sphere ref={mesh} args={[1, 64, 64]}>
       <MeshDistortMaterial
         ref={mat}
-        color="#f2b705"
+        color="#ffc400"
         speed={active ? 3.2 : 0.8}
         distort={0.1}
         roughness={0.2}
@@ -32,7 +35,7 @@ function OrbMesh({ amplitude, active }) {
   )
 }
 
-export default function VoiceOrb({ active = false, amplitude, size = 140 }) {
+export default function VoiceOrb({ active = false, amplitude, size = 140 }: { active?: boolean; amplitude: Amp; size?: number }) {
   return (
     <div style={{ width: size, height: size }}>
       <Canvas camera={{ position: [0, 0, 2.6] }} gl={{ alpha: true, antialias: true }}>
