@@ -1,13 +1,34 @@
-import { useMemo, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Html, OrbitControls, Line } from '@react-three/drei'
+import {
+  Html,
+  OrbitControls,
+  Line,
+  Environment,
+  ContactShadows,
+  RoundedBox,
+  Outlines,
+  useGLTF,
+  useAnimations,
+} from '@react-three/drei'
 import * as THREE from 'three'
 import { truckPhase, logEvent } from '../lib/sim'
 
 const YELLOW = '#f2b705'
 const DARK = '#2b2f35'
+const STEEL = '#3a3f46'
+const TRACK = '#15171a'
+
+// Third-party model assets (see THIRD_PARTY_ASSETS.md at repo root for full license text):
+//  - dumptruck.glb: "Dump truck" by jeremy, poly.pizza, CC BY 3.0
+//  - worker-d.glb / worker-e.glb: Kenney "Blocky Characters", CC0 1.0
+useGLTF.preload('/models/dumptruck.glb')
+useGLTF.preload('/models/worker-d.glb')
+useGLTF.preload('/models/worker-e.glb')
 
 // Excavator dig -> lift -> swing -> dump -> return cycle (radians)
+// NOTE: keyed against the pivot offsets used inside <Excavator>, do not change
+// those offsets without re-tuning these angles (see Controller below).
 const KEYS = [
   { swing: 0, boom: 0.45, stick: -1.75, bucket: -0.7 },
   { swing: 0, boom: -0.05, stick: -1.05, bucket: -0.2 },
@@ -30,55 +51,155 @@ function lerpPose(t) {
   return out
 }
 
+// A slim decorative hydraulic ram (sleeve + rod). Purely cosmetic, local to
+// whatever group it's nested in, so it always tracks its parent's rotation.
+function Hydraulic({ position = [0, 0, 0], rotation = [0, 0, 0], length = 1.6 }) {
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh castShadow rotation-z={Math.PI / 2}>
+        <cylinderGeometry args={[0.09, 0.1, length, 8]} />
+        <meshStandardMaterial color="#4b5157" roughness={0.4} metalness={0.7} />
+      </mesh>
+      <mesh castShadow position={[length * 0.32, 0, 0]} rotation-z={Math.PI / 2}>
+        <cylinderGeometry args={[0.045, 0.045, length * 0.72, 8]} />
+        <meshStandardMaterial color="#d8dce0" roughness={0.15} metalness={0.9} />
+      </mesh>
+    </group>
+  )
+}
+
+function BeaconLight({ position }) {
+  const mat = useRef()
+  useFrame(({ clock }) => {
+    if (!mat.current) return
+    mat.current.emissiveIntensity = 1.6 + Math.max(0, Math.sin(clock.elapsedTime * 6)) * 3
+  })
+  return (
+    <mesh position={position} castShadow>
+      <sphereGeometry args={[0.09, 10, 10]} />
+      <meshStandardMaterial ref={mat} color="#ffb020" emissive="#ffb020" emissiveIntensity={2} toneMapped={false} />
+    </mesh>
+  )
+}
+
+function toothRow(count, spread, y, z) {
+  return Array.from({ length: count }, (_, i) => spread * (i / (count - 1) - 0.5)).map((x) => (
+    <mesh key={x} position={[0.02, y, z + x]} rotation-z={Math.PI} castShadow>
+      <coneGeometry args={[0.09, 0.28, 6]} />
+      <meshStandardMaterial color="#1c1e21" roughness={0.55} metalness={0.75} />
+    </mesh>
+  ))
+}
+
+// Premium-leaning procedural Cat-style excavator. Kept fully procedural (zero
+// third-party asset / licensing risk) but rebuilt with rounded panels, glazed
+// cab, worn-metal bucket and cosmetic hydraulics instead of flat boxes.
+// The four pivot groups (house/boom/stick/bucket) keep the exact same local
+// offsets as the original mesh so the Controller's keyframed rotations below
+// produce the same dig-swing-dump motion as before.
 function Excavator({ parts }) {
+  // clearcoat (meshPhysicalMaterial) is reserved for the one big hero panel;
+  // everywhere else uses a plain meshStandardMaterial with the same look,
+  // which is much cheaper per-pixel across many small parts.
+  const paintPhysical = { color: YELLOW, roughness: 0.35, metalness: 0.2, clearcoat: 0.55, clearcoatRoughness: 0.25 }
+  const paintStd = { color: YELLOW, roughness: 0.35, metalness: 0.2 }
   return (
     <group>
-      {/* tracks */}
-      {[-1.1, 1.1].map((z) => (
-        <mesh key={z} position={[0, 0.45, z]} castShadow>
-          <boxGeometry args={[4.6, 0.9, 0.75]} />
-          <meshStandardMaterial color="#1c1f23" roughness={0.9} />
-        </mesh>
-      ))}
-      <mesh position={[0, 0.95, 0]} castShadow>
-        <boxGeometry args={[2.2, 0.35, 1.6]} />
-        <meshStandardMaterial color={DARK} />
+      {/* undercarriage */}
+      <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
+        <boxGeometry args={[4.1, 0.5, 2.85]} />
+        <meshStandardMaterial color="#22262b" roughness={0.6} metalness={0.55} />
       </mesh>
+      {/* tracks: rounded rubber body + rollers + sprockets */}
+      {[-1.15, 1.15].map((z) => (
+        <group key={z} position={[0, 0.42, z]}>
+          <RoundedBox args={[4.7, 0.82, 0.62]} radius={0.2} smoothness={2} castShadow receiveShadow>
+            <meshStandardMaterial color={TRACK} roughness={0.95} metalness={0.05} />
+          </RoundedBox>
+          {[-1.7, -0.85, 0, 0.85, 1.7].map((x) => (
+            <mesh key={x} position={[x, -0.02, 0]} rotation-z={Math.PI / 2} castShadow>
+              <cylinderGeometry args={[0.32, 0.32, 0.66, 10]} />
+              <meshStandardMaterial color="#2a2d31" roughness={0.6} metalness={0.4} />
+            </mesh>
+          ))}
+          {[-2.15, 2.15].map((x) => (
+            <mesh key={x} position={[x, 0.05, 0]} rotation-z={Math.PI / 2} castShadow>
+              <cylinderGeometry args={[0.4, 0.4, 0.7, 10]} />
+              <meshStandardMaterial color={STEEL} roughness={0.5} metalness={0.6} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+      <mesh position={[0, 0.95, 0]} castShadow receiveShadow>
+        <boxGeometry args={[2.2, 0.35, 1.6]} />
+        <meshStandardMaterial color={DARK} roughness={0.6} metalness={0.4} />
+      </mesh>
+
       {/* upper house: swings */}
       <group ref={parts.house} position={[0, 1.15, 0]}>
-        <mesh position={[-0.2, 0.55, 0]} castShadow>
-          <boxGeometry args={[3.0, 1.1, 2.5]} />
-          <meshStandardMaterial color={YELLOW} roughness={0.5} />
+        <RoundedBox args={[3.0, 1.1, 2.5]} radius={0.14} smoothness={2} position={[-0.2, 0.55, 0]} castShadow receiveShadow>
+          <meshPhysicalMaterial {...paintPhysical} />
+        </RoundedBox>
+        <RoundedBox args={[0.85, 1.05, 2.5]} radius={0.14} smoothness={2} position={[-1.95, 0.5, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color={STEEL} roughness={0.5} metalness={0.55} />
+        </RoundedBox>
+        {/* engine hatch vents */}
+        {[-1.7, -2.2].map((x) => (
+          <mesh key={x} position={[x, 1.15, 0]} castShadow>
+            <boxGeometry args={[0.35, 0.06, 2.2]} />
+            <meshStandardMaterial color="#14161a" roughness={0.8} />
+          </mesh>
+        ))}
+        {/* cab: mostly-glass greenhouse with thin yellow pillars */}
+        <mesh position={[0.85, 1.78, 0.75]} castShadow>
+          <boxGeometry args={[0.95, 1.25, 0.92]} />
+          <meshPhysicalMaterial
+            color="#9fd0e8"
+            transparent
+            opacity={0.4}
+            roughness={0.04}
+            metalness={0.05}
+            clearcoat={1}
+            clearcoatRoughness={0.06}
+            ior={1.5}
+          />
         </mesh>
-        <mesh position={[-1.95, 0.5, 0]} castShadow>
-          <boxGeometry args={[0.8, 1.05, 2.5]} />
-          <meshStandardMaterial color="#3a3f46" />
+        {[
+          [0.4, 0.32], [0.4, -0.32], [-0.4, 0.32], [-0.4, -0.32],
+        ].map(([dx, dz]) => (
+          <mesh key={`${dx}${dz}`} position={[0.85 + dx, 1.78, 0.75 + dz]} castShadow>
+            <boxGeometry args={[0.08, 1.3, 0.08]} />
+            <meshStandardMaterial {...paintStd} />
+          </mesh>
+        ))}
+        <mesh position={[0.85, 2.44, 0.75]}>
+          <boxGeometry args={[1.05, 0.08, 1.0]} />
+          <meshStandardMaterial {...paintStd} />
         </mesh>
-        {/* cab */}
-        <mesh position={[0.75, 1.75, 0.75]} castShadow>
-          <boxGeometry args={[1.0, 1.4, 0.95]} />
-          <meshStandardMaterial color="#9fb7c9" transparent opacity={0.55} metalness={0.3} />
-        </mesh>
-        <mesh position={[0.75, 2.47, 0.75]}>
-          <boxGeometry args={[1.05, 0.06, 1.0]} />
-          <meshStandardMaterial color={YELLOW} />
-        </mesh>
+        <BeaconLight position={[0.85, 2.6, 0.75]} />
+
         {/* boom -> stick -> bucket */}
         <group ref={parts.boom} position={[1.2, 1.0, -0.25]}>
-          <mesh position={[2.8, 0, 0]} castShadow>
-            <boxGeometry args={[5.6, 0.55, 0.5]} />
-            <meshStandardMaterial color={YELLOW} roughness={0.5} />
-          </mesh>
+          <RoundedBox args={[3.4, 0.62, 0.56]} radius={0.12} smoothness={2} position={[1.6, 0, 0]} castShadow receiveShadow>
+            <meshStandardMaterial {...paintStd} />
+          </RoundedBox>
+          <RoundedBox args={[2.7, 0.46, 0.42]} radius={0.1} smoothness={2} position={[4.4, 0.02, 0]} castShadow receiveShadow>
+            <meshStandardMaterial {...paintStd} />
+          </RoundedBox>
+          <Hydraulic position={[1.1, -0.55, 0.32]} rotation={[0, 0, 0.3]} length={2.1} />
+          <Hydraulic position={[1.1, -0.55, -0.32]} rotation={[0, 0, 0.3]} length={2.1} />
+
           <group ref={parts.stick} position={[5.6, 0, 0]}>
-            <mesh position={[1.5, 0, 0]} castShadow>
-              <boxGeometry args={[3.0, 0.4, 0.38]} />
-              <meshStandardMaterial color={YELLOW} roughness={0.5} />
-            </mesh>
+            <RoundedBox args={[3.0, 0.4, 0.38]} radius={0.09} smoothness={2} position={[1.5, 0, 0]} castShadow receiveShadow>
+              <meshStandardMaterial {...paintStd} />
+            </RoundedBox>
+            <Hydraulic position={[0.4, 0.42, 0]} rotation={[0, 0, -0.5]} length={1.5} />
+
             <group ref={parts.bucket} position={[3.0, 0, 0]}>
-              <mesh position={[0.35, -0.25, 0]} castShadow>
-                <boxGeometry args={[0.8, 0.85, 1.1]} />
-                <meshStandardMaterial color="#30343a" metalness={0.4} />
-              </mesh>
+              <RoundedBox args={[0.8, 0.85, 1.1]} radius={0.08} smoothness={2} position={[0.35, -0.25, 0]} castShadow receiveShadow>
+                <meshStandardMaterial color="#2c3036" roughness={0.55} metalness={0.75} />
+              </RoundedBox>
+              {toothRow(5, 0.9, -0.67, 0.35)}
             </group>
           </group>
         </group>
@@ -87,29 +208,47 @@ function Excavator({ parts }) {
   )
 }
 
+function useFitScale(scene, targetSize, mode = 'height') {
+  return useMemo(() => {
+    const box = new THREE.Box3().setFromObject(scene)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const dim = mode === 'height' ? size.y : Math.max(size.x, size.z)
+    return dim > 0.0001 ? targetSize / dim : 1
+  }, [scene, targetSize, mode])
+}
+
+function prepMaterials(scene, tune) {
+  scene.traverse((o) => {
+    if (!o.isMesh) return
+    o.castShadow = true
+    o.receiveShadow = true
+    const mats = Array.isArray(o.material) ? o.material : [o.material]
+    mats.forEach((m) => {
+      if (!m || !m.color) return
+      const hex = `#${m.color.getHexString()}`
+      const t = tune(hex)
+      if (t) Object.assign(m, t)
+      m.envMapIntensity = 1
+    })
+  })
+}
+
 function Truck({ truckRef }) {
+  const { scene } = useGLTF('/models/dumptruck.glb')
+  useEffect(() => {
+    prepMaterials(scene, (hex) => {
+      if (hex === '#1a1a1a') return { roughness: 0.9, metalness: 0.1 } // tyres
+      if (hex === '#ffffff') return { roughness: 0.15, metalness: 0.1 } // lights/glass
+      if (hex === '#455a64') return { roughness: 0.45, metalness: 0.6 } // chassis
+      return { roughness: 0.4, metalness: 0.35 } // painted bed/cab panels
+    })
+  }, [scene])
+  const scale = useFitScale(scene, 7.6, 'length')
+
   return (
     <group ref={truckRef} position={[-60, 0, -7.6]}>
-      <mesh position={[0, 1.1, 0]} castShadow>
-        <boxGeometry args={[7.2, 0.5, 2.5]} />
-        <meshStandardMaterial color="#25282d" />
-      </mesh>
-      <mesh position={[3.0, 2.2, 0]} castShadow>
-        <boxGeometry args={[1.5, 1.7, 2.5]} />
-        <meshStandardMaterial color="#e0e4e8" />
-      </mesh>
-      <mesh position={[-0.8, 2.1, 0]} castShadow>
-        <boxGeometry args={[4.8, 1.5, 2.6]} />
-        <meshStandardMaterial color="#d9822b" />
-      </mesh>
-      {[-2.5, -1.2, 2.8].map((x) =>
-        [-1.2, 1.2].map((z) => (
-          <mesh key={`${x}${z}`} position={[x, 0.55, z]} rotation-x={Math.PI / 2}>
-            <cylinderGeometry args={[0.55, 0.55, 0.4, 16]} />
-            <meshStandardMaterial color="#111" />
-          </mesh>
-        )),
-      )}
+      <primitive object={scene} scale={scale} rotation-y={Math.PI / 2} />
       <Html position={[0, 4.2, 0]} center distanceFactor={28}>
         <div className="rounded bg-black/70 px-2 py-0.5 text-[11px] text-white whitespace-nowrap">Dumper T-07</div>
       </Html>
@@ -117,8 +256,18 @@ function Truck({ truckRef }) {
   )
 }
 
-function Worker({ workerRef, isNew, label, position }) {
+function Worker({ workerRef, isNew, label, position, url }) {
   const ring = useRef()
+  const { scene, animations } = useGLTF(url)
+  const { actions } = useAnimations(animations, scene)
+  useEffect(() => {
+    prepMaterials(scene, () => null)
+    const clip = actions.idle || actions.static || Object.values(actions)[0]
+    clip?.reset().fadeIn(0.2).play()
+    return () => clip?.fadeOut(0.2)
+  }, [actions, scene])
+  const scale = useFitScale(scene, 1.75, 'height')
+
   useFrame(({ clock }) => {
     if (!ring.current) return
     const s = 1 + (clock.elapsedTime % 1.2) * 0.6
@@ -127,21 +276,17 @@ function Worker({ workerRef, isNew, label, position }) {
   })
   return (
     <group ref={workerRef} position={position}>
-      <mesh position={[0, 0.75, 0]} castShadow>
-        <cylinderGeometry args={[0.28, 0.28, 1.3, 12]} />
-        <meshStandardMaterial color="#ff7a00" emissive="#ff7a00" emissiveIntensity={0.25} />
-      </mesh>
-      <mesh position={[0, 1.6, 0]}>
-        <sphereGeometry args={[0.22, 12, 12]} />
-        <meshStandardMaterial color={isNew ? '#22c55e' : '#f5f5f5'} />
-      </mesh>
+      <group scale={scale}>
+        <primitive object={scene} />
+        {isNew && <Outlines thickness={2} color="#22c55e" />}
+      </group>
       {isNew && (
         <mesh ref={ring} rotation-x={-Math.PI / 2} position={[0, 0.05, 0]}>
           <ringGeometry args={[0.7, 0.9, 32]} />
           <meshBasicMaterial color="#22c55e" transparent />
         </mesh>
       )}
-      <Html position={[0, 2.3, 0]} center distanceFactor={26}>
+      <Html position={[0, 2.15, 0]} center distanceFactor={26}>
         <div className={`rounded px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap ${isNew ? 'bg-green-500 text-black' : 'bg-black/70 text-white'}`}>{label}</div>
       </Html>
     </group>
@@ -155,23 +300,23 @@ function SiteDressing() {
       {/* ground */}
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[220, 220]} />
-        <meshStandardMaterial color="#3b3328" roughness={1} />
+        <meshStandardMaterial color="#3b3328" roughness={0.98} metalness={0.02} />
       </mesh>
       <gridHelper args={[220, 110, '#4a4034', '#433a2f']} position={[0, 0.01, 0]} />
       {/* haul road */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.015, -7.6]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.015, -7.6]} receiveShadow>
         <planeGeometry args={[140, 5]} />
-        <meshStandardMaterial color="#56493a" />
+        <meshStandardMaterial color="#56493a" roughness={0.9} />
       </mesh>
       {/* trench being dug */}
       <mesh position={[9, -0.2, 0]}>
         <boxGeometry args={[9, 0.5, 1.6]} />
-        <meshStandardMaterial color="#1f1a14" />
+        <meshStandardMaterial color="#1f1a14" roughness={1} />
       </mesh>
       {/* spoil pile */}
-      <mesh position={[9, 0.5, 3.4]} scale={[3.5, 1, 1.3]}>
+      <mesh position={[9, 0.5, 3.4]} scale={[3.5, 1, 1.3]} castShadow receiveShadow>
         <sphereGeometry args={[1, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#5a4a36" />
+        <meshStandardMaterial color="#5a4a36" roughness={0.95} />
       </mesh>
       {/* buried fibre route from Call Before u Dig */}
       <Line points={fibre} color="#fb923c" lineWidth={3} dashed dashSize={0.8} gapSize={0.5} />
@@ -180,9 +325,9 @@ function SiteDressing() {
       </Html>
       {/* power line */}
       {[-25, 0, 25].map((x) => (
-        <mesh key={x} position={[x, 4.5, -22]}>
+        <mesh key={x} position={[x, 4.5, -22]} castShadow>
           <cylinderGeometry args={[0.18, 0.25, 9, 8]} />
-          <meshStandardMaterial color="#6b6f75" />
+          <meshStandardMaterial color="#6b6f75" roughness={0.6} metalness={0.5} />
         </mesh>
       ))}
       {[-0.6, 0.6].map((dz) => (
@@ -196,9 +341,9 @@ function SiteDressing() {
         <div className="rounded border border-red-400/60 bg-black/75 px-2 py-1 text-[11px] text-red-300 whitespace-nowrap">11 kV line · E-ceiling 6 m</div>
       </Html>
       {/* site office / shade */}
-      <mesh position={[-22, 1.5, 8]} castShadow>
+      <mesh position={[-22, 1.5, 8]} castShadow receiveShadow>
         <boxGeometry args={[6, 3, 3]} />
-        <meshStandardMaterial color="#4b5563" />
+        <meshStandardMaterial color="#4b5563" roughness={0.8} metalness={0.1} />
       </mesh>
     </group>
   )
@@ -279,20 +424,31 @@ export default function SiteScene({ sim, onZone = () => {} }) {
   const worker2 = useRef()
 
   return (
-    <Canvas shadows camera={{ position: [-20, 17, 22], fov: 42 }} dpr={[1, 2]}>
+    <Canvas
+      shadows
+      camera={{ position: [-12.5, 8.5, 14], fov: 34 }}
+      dpr={[1, 1.5]}
+      gl={{ toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
+    >
       <color attach="background" args={['#0f1216']} />
-      <fog attach="fog" args={['#0f1216', 45, 120]} />
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[20, 30, 10]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
+      <fog attach="fog" args={['#0f1216', 40, 110]} />
+      <ambientLight intensity={0.28} />
+      <hemisphereLight args={['#cfe4ff', '#2a2620', 0.35]} />
+      <directionalLight position={[20, 30, 10]} intensity={2.1} castShadow shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-40} shadow-camera-right={40} shadow-camera-top={40} shadow-camera-bottom={-40} />
+      <directionalLight position={[-16, 12, -10]} intensity={0.35} color="#8fb3ff" />
+      <Environment preset="city" background={false} environmentIntensity={0.6} resolution={64} />
       <SiteDressing />
       <Excavator parts={parts} />
       <ZoneRing sim={sim} />
-      <Truck truckRef={truckRef} />
-      <Worker workerRef={workerRef} position={[15, 0, 9]} isNew label="Day 3 · Suresh" />
-      <Worker workerRef={worker2} position={[-20, 0, 4]} label="Spotter · Anbu" />
+      <ContactShadows position={[0, 0.02, 0]} opacity={0.55} scale={22} blur={2.2} far={9} resolution={512} color="#000000" frames={1} />
+      <Suspense fallback={null}>
+        <Truck truckRef={truckRef} />
+        <Worker workerRef={workerRef} url="/models/worker-d.glb" position={[15, 0, 9]} isNew label="Day 3 · Suresh" />
+        <Worker workerRef={worker2} url="/models/worker-e.glb" position={[-20, 0, 4]} label="Spotter · Anbu" />
+      </Suspense>
       <Controller sim={sim} parts={parts} truckRef={truckRef} workerRef={workerRef} onZone={onZone} />
-      <OrbitControls target={[2, 0, -1]} maxPolarAngle={1.35} minDistance={12} maxDistance={70} />
+      <OrbitControls target={[1.4, 1.1, 0.4]} maxPolarAngle={1.35} minDistance={9} maxDistance={55} />
     </Canvas>
   )
 }
