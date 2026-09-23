@@ -1,0 +1,371 @@
+[
+  {
+    "id": "EXC001",
+    "make": "Cat",
+    "model": "320",
+    "kind": "Excavator",
+    "operator": "Ravi Kumar (OP1001)",
+    "zone": "B",
+    "x": 38,
+    "y": 55,
+    "hours": 1530.2,
+    "tank_l": 345,
+    "fuel_l": 31,
+    "working_h": 6.1,
+    "service_due_h": 12,
+    "cycles": 184,
+    "payload_t": 0,
+    "idle_min": {
+      "waiting_for_truck": 62,
+      "heat_rest": 40,
+      "warm_up": 9,
+      "cool_down": 4,
+      "waste": 33
+    },
+    "seatbelt_violations": 2,
+    "health": {
+      "hyd_oil_temp_max": 79,
+      "coolant_temp_max": 88,
+      "engine_load_pct": 64,
+      "hrs_since_oil_change": 210,
+      "sos_iron_ppm": 29,
+      "sos_silicon_ppm": 24,
+      "sos_soot_pct": 0.7,
+      "sos_water_pct": 0.04,
+      "idle_pct": 30,
+      "fault_codes_7d": 1,
+      "machine_age_yrs": 4
+    },
+    "hour_stats": {
+      "fuel_l": 3.8,
+      "load_cycles": 2,
+      "idle_min": 55,
+      "seatbelt_off_min": 30,
+      "harsh_swings": 1,
+      "raised_bucket_travel": 0
+    },
+    "faults": [
+      {
+        "code": "E0171-1",
+        "severity": "low",
+        "text": "Air filter restriction, early"
+      }
+    ],
+    "tasks": [
+      {
+        "task_type": "Grading",
+        "weather": "Rainy",
+        "operator_skill": "Intermediate",
+        "soil": "Loam",
+        "machine_age_yrs": 4,
+        "ambient_temp_c": 29,
+        "volume_m3": 120,
+        "planner_estimate_min": 42,
+        "start": "14:30",
+        "title": "T103 Grade shoulder"
+      }
+    ]
+  },
+  {
+    "id": "EXC004",
+    "make": "Cat",
+    "model": "320",
+    "kind": "Excavator",
+    "operator": "Suresh Pal (OP1007)",
+    "zone": "C",
+    "x": 70,
+    "y": 30,
+    "hours": 4210.8,
+    "tank_l": 345,
+    "fuel_l": 205,
+    "working_h": 7.4,
+    "service_due_h": 140,
+    "cycles": 231,
+    "payload_t": 0,
+    "idle_min": {
+      "waiting_for_truck": 38,
+      "heat_rest": 40,
+      "warm_up": 8,
+      "cool_down": 5,
+      "waste": 12
+    },
+    "seatbelt_violations": 0,
+    "health": {
+      "hyd_oil_temp_max": 79,
+      "coolant_temp_max": 88,
+      "engine_load_pct": 64,
+      "hrs_since_oil_change": 210,
+      "sos_iron_ppm": 17,
+      "sos_silicon_ppm": 8,
+      "sos_soot_pct": 0.7,
+      "sos_water_pct": 0.04,
+      "idle_pct": 30,
+      "fault_codes_7d": 0,
+      "machine_age_yrs": 7
+    },
+    "hour_stats": {
+      "fuel_l": 5.6,
+      "load_cycles": 12,
+      "idle_min": 16,
+      "seatbelt_off_min": 0,
+      "harsh_swings": 1,
+      "raised_bucket_travel": 0
+    },
+    "faults": [],
+    "tasks": [
+      {
+        "task_type": "Earth Excavation",
+        "weather": "Sunny",
+        "operator_skill": "Expert",
+        "soil": "Clay",
+        "machine_age_yrs": 7,
+        "ambient_temp_c": 35,
+        "volume_m3": 200,
+        "planner_estimate_min": 110,
+        "start": "13:40",
+        "title": "Earth Excavation"
+      }
+    ]
+  },
+  {
+    "id": "WHL002",
+    "make": "Cat",
+    "model": "950 GC",
+    "kind": "Wheel loader",
+    "operator": "Anil Yadav (OP1012)",
+    "zone": "A",
+    "x": 18,
+    "y": 28,
+    "hours": 2875.0,
+    "tank_l": 300,
+    "fuel_l": 164,
+    "working_h": 6.8,
+    "service_due_h": 48,
+    "cycles": 312,
+    "payload_t": 1180,
+    "idle_min": {
+      "waiting_for_truck": 55,
+      "heat_rest": 40,
+      "warm_up": 10,
+      "cool_down": 6,
+      "waste": 21
+    },
+    "seatbelt_violations": 1,
+    "health": {
+      "hyd_oil_temp_max": 96,
+      "coolant_temp_max": 88,
+      "engine_load_pct": 64,
+      "hrs_since_oil_change": 210,
+      "sos_iron_ppm": 17,
+      "sos_silicon_ppm": 8,
+      "sos_soot_pct": 0.7,
+      "sos_water_pct": 0.04,
+      "idle_pct": 30,
+      "fault_codes_7d": 3,
+      "machine_age_yrs": 5
+    },
+    "hour_stats": {
+      "fuel_l": 6.4,
+      "load_cycles": 14,
+      "idle_min": 12,
+      "seatbelt_off_min": 0,
+      "harsh_swings": 7,
+      "raised_bucket_travel": 3
+    },
+    "faults": [
+      {
+        "code": "E0600-2",
+        "severity": "high",
+        "text": "Hydraulic oil temperature high"
+      },
+      {
+        "code": "E0600-1",
+        "severity": "medium",
+        "text": "Hydraulic oil temperature warning"
+      }
+    ],
+    "tasks": [
+      {
+        "task_type": "Material Loading",
+        "weather": "Sunny",
+        "operator_skill": "Intermediate",
+        "soil": "Sand",
+        "machine_age_yrs": 5,
+        "ambient_temp_c": 36,
+        "volume_m3": 220,
+        "planner_estimate_min": 55,
+        "start": "13:40",
+        "title": "Material Loading"
+      }
+    ]
+  },
+  {
+    "id": "DT-03",
+    "make": "Cat",
+    "model": "725",
+    "kind": "Dumper",
+    "operator": "Manoj Singh (OP1021)",
+    "zone": "Haul road",
+    "x": 52,
+    "y": 78,
+    "hours": 6120.4,
+    "tank_l": 400,
+    "fuel_l": 240,
+    "working_h": 7.9,
+    "service_due_h": 260,
+    "cycles": 21,
+    "payload_t": 483,
+    "idle_min": {
+      "waiting_for_truck": 0,
+      "heat_rest": 40,
+      "warm_up": 7,
+      "cool_down": 4,
+      "waste": 18
+    },
+    "seatbelt_violations": 0,
+    "health": {
+      "hyd_oil_temp_max": 79,
+      "coolant_temp_max": 101,
+      "engine_load_pct": 64,
+      "hrs_since_oil_change": 210,
+      "sos_iron_ppm": 17,
+      "sos_silicon_ppm": 8,
+      "sos_soot_pct": 0.7,
+      "sos_water_pct": 0.42,
+      "idle_pct": 30,
+      "fault_codes_7d": 0,
+      "machine_age_yrs": 8
+    },
+    "hour_stats": {
+      "fuel_l": 7.0,
+      "load_cycles": 3,
+      "idle_min": 14,
+      "seatbelt_off_min": 0,
+      "harsh_swings": 0,
+      "raised_bucket_travel": 0
+    },
+    "faults": [
+      {
+        "code": "E0361-2",
+        "severity": "high",
+        "text": "Coolant temperature high"
+      }
+    ],
+    "tasks": []
+  },
+  {
+    "id": "DT-07",
+    "make": "Cat",
+    "model": "725",
+    "kind": "Dumper",
+    "operator": "Imran Khan (OP1024)",
+    "zone": "Haul road",
+    "x": 30,
+    "y": 70,
+    "hours": 3380.9,
+    "tank_l": 400,
+    "fuel_l": 196,
+    "working_h": 7.6,
+    "service_due_h": 90,
+    "cycles": 19,
+    "payload_t": 437,
+    "idle_min": {
+      "waiting_for_truck": 0,
+      "heat_rest": 40,
+      "warm_up": 6,
+      "cool_down": 5,
+      "waste": 9
+    },
+    "seatbelt_violations": 0,
+    "health": {
+      "hyd_oil_temp_max": 79,
+      "coolant_temp_max": 88,
+      "engine_load_pct": 64,
+      "hrs_since_oil_change": 210,
+      "sos_iron_ppm": 17,
+      "sos_silicon_ppm": 8,
+      "sos_soot_pct": 0.7,
+      "sos_water_pct": 0.04,
+      "idle_pct": 30,
+      "fault_codes_7d": 0,
+      "machine_age_yrs": 4
+    },
+    "hour_stats": {
+      "fuel_l": 6.8,
+      "load_cycles": 3,
+      "idle_min": 10,
+      "seatbelt_off_min": 0,
+      "harsh_swings": 0,
+      "raised_bucket_travel": 0
+    },
+    "faults": [],
+    "tasks": []
+  },
+  {
+    "id": "BHL-11",
+    "make": "JCB",
+    "model": "3DX",
+    "kind": "Backhoe loader (rental, mixed fleet)",
+    "operator": "Deepak (OP1031)",
+    "zone": "A",
+    "x": 12,
+    "y": 50,
+    "hours": 8930.0,
+    "tank_l": 120,
+    "fuel_l": 41,
+    "working_h": 4.2,
+    "service_due_h": -35,
+    "cycles": 96,
+    "payload_t": 0,
+    "idle_min": {
+      "waiting_for_truck": 20,
+      "heat_rest": 40,
+      "warm_up": 12,
+      "cool_down": 3,
+      "waste": 88
+    },
+    "seatbelt_violations": 4,
+    "health": {
+      "hyd_oil_temp_max": 79,
+      "coolant_temp_max": 88,
+      "engine_load_pct": 64,
+      "hrs_since_oil_change": 585,
+      "sos_iron_ppm": 17,
+      "sos_silicon_ppm": 8,
+      "sos_soot_pct": 2.1,
+      "sos_water_pct": 0.04,
+      "idle_pct": 30,
+      "fault_codes_7d": 0,
+      "machine_age_yrs": 9
+    },
+    "hour_stats": {
+      "fuel_l": 3.6,
+      "load_cycles": 1,
+      "idle_min": 58,
+      "seatbelt_off_min": 41,
+      "harsh_swings": 2,
+      "raised_bucket_travel": 1
+    },
+    "faults": [
+      {
+        "code": "SVC",
+        "severity": "medium",
+        "text": "Oil change 85 h overdue"
+      }
+    ],
+    "tasks": [
+      {
+        "task_type": "Trenching",
+        "weather": "Sunny",
+        "operator_skill": "Beginner",
+        "soil": "Clay",
+        "machine_age_yrs": 9,
+        "ambient_temp_c": 36,
+        "volume_m3": 60,
+        "planner_estimate_min": 30,
+        "start": "13:40",
+        "title": "Trenching"
+      }
+    ]
+  }
+]

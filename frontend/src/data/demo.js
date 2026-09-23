@@ -23,8 +23,18 @@ export const machine = {
   owner: 'Rental · Sri Balaji Earthmovers',
   pattern: 'SAE',
   engineHours: 1530.2,
-  fuelPct: 38,
+  fuelL: 78,
+  tankL: 345,
+  fuelPct: 23,
   serviceDueIn: 12,
+  // last night's sensor snapshot + S·O·S oil sample, input to the health model
+  healthDay: { hyd_oil_temp_max: 79, coolant_temp_max: 88, engine_load_pct: 62, hrs_since_oil_change: 210,
+    sos_iron_ppm: 29, sos_silicon_ppm: 24, sos_soot_pct: 0.7, sos_water_pct: 0.04, idle_pct: 30,
+    fault_codes_7d: 1, machine_age_yrs: 4 },
+  healthFallback: { risk_pct: 46, level: 'watch', component: 'Engine air intake',
+    action: 'Check air filter and intake hoses: dust is getting into the engine',
+    reasons: [{ factor: 'Silicon in oil', value: '24 ppm', usual: '8', points: 41 }] },
+  fuelFallback: { runs_out_at: '14:43', refuel_before: 'T103', litres_planned: 71.1, co2_kg: 191, fuel_left_end_l: 6.9 },
 }
 
 // Tasks for today. The P10/P50/P90 comes from the ML API (fallback values below).

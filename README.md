@@ -23,6 +23,12 @@ Demo scope: one operator (Ravi, OP1001) on one machine (Cat 320 excavator, EXC00
 | Voice near-miss report + 60 s black box | Incident logging | Web Speech API (hi-IN), structured report |
 | Unusual hour detection | Unusual behaviour | Isolation forest + readable rules (`/score/behaviour`) |
 | Lessons from yesterday's events | Operator training hub | handheld screen |
+| Machine health before you start: failure risk in the next 50 h, top reason, walkaround item | Safety features, operator companion | Gradient boosting classifier (`/predict/health`) |
+| Fuel plan: when the tank hits reserve today and which task to refuel before | Daily task dashboard | Fuel-rate model × task-time model (`/forecast/fuel`) |
+| What-if on a task (change weather, skill, soil, re-predict) | Task time estimation | `/predict/task` |
+| Unusual behaviour card while docked, per-hour rates from the sim | Unusual behaviour | Isolation forest + rules (`/score/behaviour`) |
+| End-of-shift summary: verified hours, idle split justified vs avoidable, events, new lessons | Operator training hub, unusual behaviour | handheld screen, from the sim |
+| Supervisor view: site KPIs, machine table, health and fuel predictions, site map, alert budget, official telemetry rows scored | All five | `FleetView.jsx`, `GET /fleet` |
 
 ## Run it
 
@@ -34,7 +40,7 @@ cd ml
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python generate_data.py     # synthetic history (data/*.csv)
-python train.py             # trains 3 models, prints metrics
+python train.py             # trains 5 models, prints metrics
 uvicorn api:app --reload --port 8000    # docs at http://localhost:8000/docs
 ```
 
@@ -51,10 +57,24 @@ If the API is not running, the app still works and falls back to cached predicti
 | Model | Question it answers | Algorithm | Current result |
 | --- | --- | --- | --- |
 | Task time | How long will this job take, and how sure are we? | Gradient boosting with quantile loss, 3 models (P10, P50, P90) | Error 7.1 min against the planner's 19.8 min |
-| Idle reason | Why is the engine on with no work? | Random forest on 9 window features | 98.6% accuracy on synthetic data |
-| Unusual behaviour | Was this hour unusual for this operator? | Isolation forest + rules that give a plain reason | 96% precision, 83% recall on planted anomalies |
+| Idle reason | Why is the engine on with no work? | Random forest on 9 window features | 98.3% accuracy on synthetic data |
+| Unusual behaviour | Was this hour unusual for this operator? | Isolation forest + rules that give a plain reason | 100% precision, 89% recall on planted anomalies. Flags exactly the 10:00 and next-day 09:00 rows of the official sample |
+| Machine health | Will this machine have a failure in the next 50 engine hours, and why? | Gradient boosting classifier on sensors + S·O·S oil sample | ROC AUC 0.83. Top 10% riskiest: 75% really fail, against a 16.5% base rate |
+| Fuel burn rate | How many litres per hour will this task burn? | Gradient boosting regressor, same features as task time | Error 0.87 L/h against 2.81 L/h for one flat rate |
 
-Explanations: for each task, we re-predict with one factor set to an "easy day" value (sunny, expert, loam, new machine) and report the difference in minutes. That is the "+7 min: soil clay" chip.
+Explanations: for each task, we re-predict with one factor set to an "easy day" value (sunny, expert, loam, new machine) and report the difference in minutes. That is the "+7 min: soil clay" chip. The health model uses the same trick: put one reading back to its healthy value, and the drop in risk is that reading's share ("Silicon 24 ppm, usual 8: +41 pts, check the air filter").
+
+Fuel run-out: litres per task = fuel-rate model × P50 minutes from the task-time model, plus 5 L/h between tasks. The time the tank hits reserve is the first point on that timeline where the reserve is crossed.
+
+## Compared with Cat VisionLink
+
+VisionLink (Cat's fleet telematics app) already gives owners hours, location, utilization, idle time with an excessive-idle threshold, fuel and DEF levels, CO2 from fuel burned, fault codes, service and inspection due dates, S·O·S fluid analysis, productivity KPIs (cycles, payload, seat belt violations), geofences, alerts and reports, for mixed fleets. We don't claim any of that as new. The supervisor view shows the same kind of numbers and adds three things:
+
+1. **Prediction, not only history.** Failure risk in the next 50 h per machine, and the time the tank hits reserve against today's plan.
+2. **A reason next to every number.** Idle is split by reason (waiting for truck, heat rest, warm-up, cool-down, waste), so only waste counts against anyone. Each health risk names the reading behind it and what to check.
+3. **The operator sees it too.** The same health result turns into the first walkaround item on the operator's tablet, and the fuel forecast into "refuel before T103". Coaching, not surveillance. An alert budget pushes only high-severity items to phones.
+
+The fleet data (6 machines, including a non-Cat backhoe to show mixed fleet) is synthetic, in `ml/data/fleet.json`. The API scores it with the real models on every request. The frontend keeps a saved copy of one real API response (`frontend/src/data/fleet_fallback.json`) for when the API is down.
 
 Synthetic data: `generate_data.py` extends the two tables from the problem statement and plants known patterns (skill, weather, soil, machine age multipliers; the planner ignoring skill; unbuckling during long idles). The 5 official task rows are kept as the first rows.
 
@@ -65,8 +85,10 @@ frontend/   React + Vite + Tailwind + react-three-fiber
   src/components/DockTransition.jsx docking sequence
   src/components/DockedMode.jsx     machine display + safety logic
   src/components/SiteScene.jsx      3D site and excavator
+  src/components/FleetView.jsx      supervisor view (site KPIs, machines, map, alerts)
+  src/components/ui.jsx             shared Card, expected-outcome tag, live badge
   src/lib/sim.js                    shared simulation state
-ml/         data generator, training, FastAPI server
+ml/         data generator, training (5 models), FastAPI server
 ```
 
 ## Roadmap (pitch only, not built)

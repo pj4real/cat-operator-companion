@@ -4,6 +4,7 @@ Small FastAPI server that the React app calls.
 Run:  uvicorn api:app --reload --port 8000
 Docs: http://localhost:8000/docs
 """
+import json
 from pathlib import Path
 
 import joblib
@@ -13,9 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 MODELS = Path(__file__).parent / "models"
+DATA = Path(__file__).parent / "data"
 task_bundle = joblib.load(MODELS / "task_time.joblib")
 idle_bundle = joblib.load(MODELS / "idle_reason.joblib")
 beh_bundle = joblib.load(MODELS / "behaviour.joblib")
+health_bundle = joblib.load(MODELS / "machine_health.joblib")
+fuel_bundle = joblib.load(MODELS / "fuel_rate.joblib")
 
 app = FastAPI(title="Cat Operator Companion API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -113,6 +117,201 @@ def score_behaviour(h: HourStats):
     if h.raised_bucket_travel >= 2:
         notes.append("Travelling with bucket raised")
     return {"unusual": unusual, "score": round(score, 3), "reasons": notes}
+
+
+# ---------------------------------------------------------------- machine health risk
+HEALTHY = {"hyd_oil_temp_max": 79, "coolant_temp_max": 88, "engine_load_pct": 62, "hrs_since_oil_change": 250,
+           "sos_iron_ppm": 17, "sos_silicon_ppm": 8, "sos_soot_pct": 0.7, "sos_water_pct": 0.04,
+           "idle_pct": 30, "fault_codes_7d": 0}
+# factor -> (plain label, unit, component, what to do about it)
+HEALTH_TEXT = {
+    "sos_silicon_ppm": ("Silicon in oil", "ppm", "Engine air intake", "Check air filter and intake hoses: dust is getting into the engine"),
+    "sos_iron_ppm": ("Iron in oil", "ppm", "Engine wear", "Wear metals rising: resample oil at next service"),
+    "sos_water_pct": ("Water in oil", "%", "Cooling system", "Coolant may be leaking into oil: check oil cooler and head gasket"),
+    "coolant_temp_max": ("Coolant peak", "°C", "Cooling system", "Clean radiator core and check coolant level"),
+    "hyd_oil_temp_max": ("Hydraulic oil peak", "°C", "Hydraulics", "Clean hydraulic oil cooler, check oil level"),
+    "hrs_since_oil_change": ("Hours since oil change", "h", "Engine oil", "Oil change overdue: book service"),
+    "sos_soot_pct": ("Soot in oil", "%", "Engine oil", "Oil change overdue: book service"),
+    "fault_codes_7d": ("Fault codes, last 7 days", "", "Electronics", "Ask dealer for a remote troubleshoot"),
+    "engine_load_pct": ("Engine load", "%", "Engine", "Check for dragging brakes or wrong work mode"),
+    "idle_pct": ("Idle share", "%", "Engine", "Long idling: see idle reasons"),
+}
+
+
+class HealthDay(BaseModel):
+    hyd_oil_temp_max: float = 79
+    coolant_temp_max: float = 88
+    engine_load_pct: float = 62
+    hrs_since_oil_change: float = 210
+    sos_iron_ppm: float = 29
+    sos_silicon_ppm: float = 24
+    sos_soot_pct: float = 0.7
+    sos_water_pct: float = 0.04
+    idle_pct: float = 30
+    fault_codes_7d: float = 1
+    machine_age_yrs: float = 4
+
+
+def _health(row: dict):
+    feats = health_bundle["features"]
+    # one score for today, plus one per factor with that factor put back to a healthy value
+    variants = [row] + [{**row, k: v} for k, v in HEALTHY.items()]
+    probs = health_bundle["model"].predict_proba(pd.DataFrame(variants)[feats])[:, 1]
+    risk = float(probs[0])
+    reasons = []
+    for i, key in enumerate(HEALTHY, start=1):
+        pts = (risk - float(probs[i])) * 100
+        if pts >= 3:
+            label, unit, comp, action = HEALTH_TEXT[key]
+            reasons.append({"factor": label, "value": f"{row[key]:g}{(' ' + unit) if unit else ''}",
+                            "usual": f"{HEALTHY[key]:g}", "points": round(pts), "component": comp, "action": action})
+    reasons.sort(key=lambda r: -r["points"])
+    level = "high" if risk >= 0.5 else "watch" if risk >= 0.25 else "low"
+    top = reasons[0] if reasons else None
+    return {"risk_pct": round(risk * 100), "level": level, "reasons": reasons[:3],
+            "component": top["component"] if top else None,
+            "action": top["action"] if top else "No action needed. Normal walkaround."}
+
+
+@app.post("/predict/health")
+def predict_health(day: HealthDay):
+    return _health(day.model_dump())
+
+
+# ---------------------------------------------------------------- fuel run-out forecast
+CO2_KG_PER_L = 2.68  # diesel, standard emission factor
+
+
+class FuelTask(Task):
+    start: str = "09:00"
+    title: str = ""
+
+
+class FuelPlan(BaseModel):
+    fuel_l: float = 78
+    tank_l: float = 345
+    now: str = "07:00"
+    reserve_l: float = 15
+    between_tasks_lph: float = 5.0  # mix of short moves, idle and small jobs between planned tasks
+    tasks: list[FuelTask] = []
+
+
+def _mins(hhmm: str) -> float:
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
+
+
+def _clock(mins: float) -> str:
+    mins = int(round(mins))
+    return f"{mins // 60:02d}:{mins % 60:02d}"
+
+
+def _fuel(plan: dict):
+    tasks = sorted(plan["tasks"], key=lambda t: _mins(t["start"]))
+    if not tasks:
+        return {"tasks": [], "litres_planned": 0, "co2_kg": 0, "runs_out_at": None, "refuel_before": None,
+                "fuel_left_end_l": plan["fuel_l"]}
+    X = pd.get_dummies(pd.DataFrame(tasks)[CAT_COLS + NUM_COLS], columns=CAT_COLS, dtype=float)
+    lph = fuel_bundle["model"].predict(X.reindex(columns=fuel_bundle["columns"], fill_value=0.0))
+    dur = _predict(tasks)["p50"]
+    left, t, usable = plan["fuel_l"], _mins(plan["now"]), plan["fuel_l"] - plan["reserve_l"]
+    used, out_at, refuel_before, rows = 0.0, None, None, []
+
+    def burn(litres, rate_lph, start):
+        nonlocal used, out_at
+        if out_at is None and used + litres > usable:
+            out_at = start + (usable - used) / rate_lph * 60
+        used += litres
+
+    for i, task in enumerate(tasks):
+        start = max(_mins(task["start"]), t)
+        gap_l = (start - t) / 60 * plan["between_tasks_lph"]
+        burn(gap_l, plan["between_tasks_lph"], t)
+        task_l = float(lph[i]) * float(dur[i]) / 60
+        if out_at is None and refuel_before is None and used + task_l > usable:
+            refuel_before = task.get("title") or task["task_type"]
+        burn(task_l, float(lph[i]), start)
+        t = start + float(dur[i])
+        rows.append({"title": task.get("title") or task["task_type"], "start": _clock(start), "end": _clock(t),
+                     "lph": round(float(lph[i]), 1), "litres": round(task_l, 1),
+                     "fuel_left_l": round(plan["fuel_l"] - used, 1)})
+    return {"tasks": rows, "litres_planned": round(used, 1), "co2_kg": round(used * CO2_KG_PER_L),
+            "runs_out_at": _clock(out_at) if out_at is not None else None, "refuel_before": refuel_before,
+            "fuel_left_end_l": round(plan["fuel_l"] - used, 1)}
+
+
+@app.post("/forecast/fuel")
+def forecast_fuel(plan: FuelPlan):
+    return _fuel(plan.model_dump())
+
+
+# ---------------------------------------------------------------- site / fleet view
+JUSTIFIED_IDLE = ("waiting_for_truck", "heat_rest", "warm_up", "cool_down")
+# the official telemetry sample; "Unfastened" hours carry an assumed 30 min belt-off
+OFFICIAL_ROWS = [
+    {"time": "2025-05-01 08:00", "fuel_l": 5.2, "load_cycles": 12, "idle_min": 30, "seatbelt": "Fastened", "alert": "No"},
+    {"time": "2025-05-01 10:00", "fuel_l": 3.8, "load_cycles": 2, "idle_min": 55, "seatbelt": "Unfastened", "alert": "Yes"},
+    {"time": "2025-05-01 14:00", "fuel_l": 6.1, "load_cycles": 10, "idle_min": 15, "seatbelt": "Fastened", "alert": "No"},
+    {"time": "2025-05-02 09:00", "fuel_l": 2.0, "load_cycles": 1, "idle_min": 60, "seatbelt": "Unfastened", "alert": "Yes"},
+]
+
+
+@app.get("/fleet")
+def fleet():
+    machines, alerts = [], []
+    for m in json.loads((DATA / "fleet.json").read_text()):
+        h = _health(m["health"])
+        f = _fuel({"fuel_l": m["fuel_l"], "tank_l": m["tank_l"], "now": "13:30", "reserve_l": m["tank_l"] * 0.05,
+                   "between_tasks_lph": 5.0, "tasks": m["tasks"]})
+        b = score_behaviour(HourStats(**m["hour_stats"]))
+        idle_total = sum(m["idle_min"].values())
+        waste = m["idle_min"]["waste"]
+        machines.append({k: m[k] for k in ("id", "make", "model", "kind", "operator", "zone", "x", "y", "hours",
+                                           "tank_l", "fuel_l", "working_h", "service_due_h", "cycles", "payload_t",
+                                           "seatbelt_violations", "faults")}
+                        | {"idle_min": idle_total, "idle_waste_min": waste, "idle_by_reason": m["idle_min"],
+                           "fuel_pct": round(m["fuel_l"] / m["tank_l"] * 100), "health": h, "fuel_plan": f,
+                           "behaviour": b})
+        if h["level"] == "high":
+            alerts.append({"level": "high", "machine": m["id"], "text": f"{h['risk_pct']}% failure risk in 50 h: {h['action']}"})
+        elif h["level"] == "watch":
+            alerts.append({"level": "medium", "machine": m["id"], "text": f"Health watch ({h['risk_pct']}%): {h['action']}"})
+        if f["runs_out_at"]:
+            alerts.append({"level": "high", "machine": m["id"], "text": f"Fuel runs out ~{f['runs_out_at']}. Send bowser before {f['refuel_before'] or 'next task'}"})
+        if b["unusual"]:
+            alerts.append({"level": "medium", "machine": m["id"], "text": "Unusual hour: " + "; ".join(b["reasons"][:2])})
+        if m["service_due_h"] < 0:
+            alerts.append({"level": "medium", "machine": m["id"], "text": f"Service {-m['service_due_h']} h overdue"})
+        for fc in m["faults"]:
+            alerts.append({"level": fc["severity"], "machine": m["id"], "text": f"{fc['code']} {fc['text']}"})
+
+    rank = {"high": 0, "medium": 1, "low": 2}
+    alerts.sort(key=lambda a: rank[a["level"]])
+    work_h = sum(m["working_h"] for m in machines)
+    idle_h = sum(m["idle_min"] for m in machines) / 60
+    waste_h = sum(m["idle_waste_min"] for m in machines) / 60
+    fuel_used = sum(m["working_h"] * 15 + m["idle_min"] / 60 * 3.8 for m in machines)
+    official = [{**r, **score_behaviour(HourStats(fuel_l=r["fuel_l"], load_cycles=r["load_cycles"], idle_min=r["idle_min"],
+                                                  seatbelt_off_min=30 if r["seatbelt"] == "Unfastened" else 0,
+                                                  harsh_swings=1, raised_bucket_travel=0))}
+                for r in OFFICIAL_ROWS]
+    return {
+        "site": "NH-48 widening, Sriperumbudur",
+        "kpis": {
+            "utilization_pct": round(work_h / (work_h + idle_h) * 100),
+            "idle_pct": round(idle_h / (work_h + idle_h) * 100),
+            "idle_justified_pct": round((idle_h - waste_h) / idle_h * 100),
+            "idle_waste_h": round(waste_h, 1),
+            "fuel_used_l": round(fuel_used),
+            "co2_kg": round(fuel_used * CO2_KG_PER_L),
+            "seatbelt_violations": sum(m["seatbelt_violations"] for m in machines),
+            "cycles": sum(m["cycles"] for m in machines),
+        },
+        "machines": machines,
+        "alerts": alerts,
+        "alerts_pushed": sum(a["level"] == "high" for a in alerts),
+        "official_rows": official,
+    }
 
 
 @app.get("/health")
