@@ -130,6 +130,9 @@ export interface FleetMachine {
   idle_min: number
   idle_waste_min: number
   idle_by_reason: Partial<Record<IdleReason, number>>
+  idle_by_reason_source?: string
+  work_lph?: number
+  fuel_used_l?: number
   health: HealthResult
   fuel_plan: FuelPlan
   behaviour: BehaviourResult
@@ -161,6 +164,7 @@ export interface FleetData {
     idle_waste_h: number
     fuel_used_l: number
     co2_kg: number
+    fuel_basis?: string
     seatbelt_violations: number
     cycles: number
   }

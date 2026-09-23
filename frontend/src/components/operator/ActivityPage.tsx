@@ -29,7 +29,7 @@ export function ActivityPage() {
           <CardBody><WeeklyHoursChart /></CardBody>
         </Card>
         <Card className="xl:col-span-5">
-          <CardHeader icon={Activity} title="Why the engine idled" description="Share of idle minutes, by reason from the idle-reason model" outcomes={['Excessive idling']} />
+          <CardHeader icon={Activity} title="Why the engine idled" description="Share of idle minutes this week, from the idle-reason model's output (cached)" outcomes={['Excessive idling']} />
           <CardBody>
             <IdleReasonBars />
             <p className="mt-4 text-[13px] text-fg-3">Only the avoidable share counts against you. Waiting for a truck or a heat rest is part of the job.</p>
