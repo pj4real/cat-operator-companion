@@ -74,9 +74,46 @@ export const lessons = [
   { title: 'Working near buried utilities', from: 'Site rule · Zone B', mins: 3, done: true },
 ]
 
+// aggregates for the dashboard KPI tiles and charts (this week, EXC001)
+export const weeklyStats = {
+  utilizationPct: 63,
+  idlePct: 37,
+  idleFuelL: 41.6,
+  idleCostINR: 3744,
+  safetyScore: 96,
+  incidentsThisWeek: 0,
+}
+
+// idle minutes by ML-classified reason, this week -- feeds the idle-reason donut
+export const idleBreakdown = [
+  { reason: 'Waiting for truck', pct: 44 },
+  { reason: 'Heat rest', pct: 19 },
+  { reason: 'Warm-up', pct: 13 },
+  { reason: 'Cool-down', pct: 9 },
+  { reason: 'No reason found', pct: 15 },
+]
+
+// simplified top-down site layout for the map widget (viewBox 0 0 100 60).
+// Coordinates are spaced so marker halos and labels don't overlap each other
+// or the zone corner labels -- checked by hand, not just "looks roughly right".
+export const siteMap = {
+  zones: [
+    { id: 'A', label: 'Bay 2 · Loading', x: 4, y: 36, w: 22, h: 20, tone: 'neutral' },
+    { id: 'B', label: 'Zone B · Trenching (fibre)', x: 32, y: 8, w: 34, h: 24, tone: 'hazard' },
+    { id: 'C', label: 'Zone C · Grading', x: 70, y: 32, w: 24, h: 22, tone: 'neutral' },
+  ],
+  powerline: { y: 4, poles: [18, 50, 84] },
+  fibre: [[35, 20], [61, 17]],
+  excavator: { x: 49, y: 24 },
+  dumper: { x: 12, y: 46 },
+  workers: [{ x: 58, y: 27, tag: 'Day 3 · Suresh' }, { x: 61, y: 30, tag: 'Day 3 · Anbu' }],
+  heatRest: { x: 20, y: 40, label: 'Heat rest · Bay 1' },
+}
+
 export const hourly = [
   // matches the format of the official telemetry sample
   { time: '08:00', fuel: 5.2, cycles: 12, idle: 30, belt: 'Fastened', alert: 'No' },
   { time: '10:00', fuel: 3.8, cycles: 2, idle: 55, belt: 'Unfastened', alert: 'Yes' },
   { time: '14:00', fuel: 6.1, cycles: 10, idle: 15, belt: 'Fastened', alert: 'No' },
+  { time: '2025-05-02 09:00', fuel: 2.0, cycles: 1, idle: 60, belt: 'Unfastened', alert: 'Yes' },
 ]

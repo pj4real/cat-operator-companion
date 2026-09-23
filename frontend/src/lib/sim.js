@@ -24,10 +24,10 @@ export function createSim() {
     idleSec: 0, // site seconds
     idleFuelL: 0,
     idleWasteSec: 0, // site seconds of idle with the next truck > 3 min away
-    beltOffSec: 0, // site seconds with engine on and belt off
     cycles: 0,
     events: [],
     idleSinceSec: 0,
+    seatbeltOffSec: 0, // real: accumulated while engine is on and belt is off
   }
 }
 

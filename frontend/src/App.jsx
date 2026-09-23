@@ -37,7 +37,7 @@ export default function App() {
       idleFuelL: s.idleFuelL,
       wasteMin: s.idleWasteSec / 60,
       wasteFuelL,
-      beltOffMin: s.beltOffSec / 60,
+      beltOffMin: s.seatbeltOffSec / 60,
       events: s.events.filter((e) => e.level !== 'ok'),
       lessons: shiftLessons(s),
     })
@@ -48,15 +48,19 @@ export default function App() {
   const fleet = mode === 'fleet'
   return (
     <div className="flex h-full flex-col">
-      {/* device status bar */}
-      <div className="flex items-center gap-3 bg-black px-4 py-1.5 text-xs text-muted">
-        <span className="font-bold text-cat">OPERATOR COMPANION</span>
-        <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${docked ? 'bg-cat text-black' : 'bg-white/5'}`}>
+      {/* device status bar: light for the handheld tablet, dark once docked as the machine display */}
+      <div className={docked
+        ? 'flex items-center gap-3 bg-black px-4 py-1.5 text-xs text-muted'
+        : 'flex items-center gap-3 bg-card px-4 py-1.5 text-xs text-ink2 shadow-sm ring-1 ring-black/[0.06]'}>
+        <span className={`flex items-center gap-1.5 font-bold ${docked ? 'text-cat' : 'text-ink1'}`}>
+          {!docked && <span className="h-2.5 w-2.5 rounded-[3px] bg-cat" />}OPERATOR COMPANION
+        </span>
+        <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${docked ? 'bg-cat text-black' : 'bg-black/5'}`}>
           <PlugZap size={12} /> {docked ? 'Docked · EXC001 · J1939' : mode === 'docking' ? 'Docking…' : fleet ? 'Supervisor tablet' : 'Handheld'}
         </span>
         {(mode === 'normal' || fleet) && (
           <button onClick={() => setMode(fleet ? 'normal' : 'fleet')}
-            className="flex items-center gap-1 rounded-full border border-line px-2 py-0.5 hover:bg-white/5 hover:text-white">
+            className="flex items-center gap-1 rounded-full bg-black/5 px-2 py-0.5 text-ink1 transition hover:bg-black/10">
             {fleet ? <><UserRound size={12} /> Operator view</> : <><LayoutDashboard size={12} /> Supervisor view</>}
           </button>
         )}
