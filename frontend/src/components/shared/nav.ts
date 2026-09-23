@@ -1,4 +1,4 @@
-import { Activity, GraduationCap, HardHat, LayoutDashboard, ListChecks, TableProperties, type LucideIcon } from 'lucide-react'
+import { Activity, GitCompare, GraduationCap, HardHat, LayoutDashboard, ListChecks, TableProperties, type LucideIcon } from 'lucide-react'
 import type { Page, Workspace } from '@/store/app'
 
 export interface NavItem { page: Page; label: string; icon: LucideIcon; description: string }
@@ -16,6 +16,7 @@ export const NAV: Record<Workspace, NavGroup[]> = {
     {
       label: 'My record',
       items: [
+        { page: 'twin', label: 'My twin', icon: GitCompare, description: 'Your own working pattern, per condition: what every alert compares you with' },
         { page: 'training', label: 'Training hub', icon: GraduationCap, description: 'Lessons from your shifts, skill passport, instructor booking' },
         { page: 'activity', label: 'Hours & activity', icon: Activity, description: 'Verified hours, idle reasons, machine data' },
       ],

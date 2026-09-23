@@ -39,5 +39,19 @@
     "model_mae_lph": 0.87,
     "flat_rate_mae_lph": 2.81,
     "flat_rate_lph": 17.38
+  },
+  "operator_twin": {
+    "twin": {
+      "precision": 0.667,
+      "recall": 0.952,
+      "flags": 60
+    },
+    "site_threshold": {
+      "precision": 0.4,
+      "recall": 0.81,
+      "flags": 85
+    },
+    "test_hours": 900,
+    "planted": 42
   }
 }

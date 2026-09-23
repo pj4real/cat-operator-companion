@@ -8,7 +8,7 @@ and we can explain exactly why they predict what they predict.
 
 Run:  python generate_data.py
 Out:  data/tasks.csv, data/idle_windows.csv, data/shift_hours.csv,
-      data/machine_days.csv, data/fleet.json
+      data/machine_days.csv, data/fleet.json, data/operator_hours.csv
 """
 import json
 
@@ -273,3 +273,74 @@ fleet = [
 
 print(f"tasks: {len(tasks)}  idle windows: {len(idle_rows)}  shift hours: {len(hour_rows)}  "
       f"machine days: {len(day_rows)}  fleet machines: {len(fleet)}")
+
+
+# ---------------------------------------------------------------------------
+# 6. OPERATOR HOURS  (per-operator history with context: the digital twin's input)
+#    One row per operator-hour, tagged with the conditions it happened in, so the
+#    twin can learn each person's usual *in those conditions*. Separate seed: the
+#    datasets above stay byte-identical.
+#    Planted, per person (the twin should find these on its own):
+#      Ravi (OP1001):  idle rises ~70% in rain; on a rental with the other joystick
+#                      pattern, harsh swings in the first 2 hours; unbuckles in long
+#                      idles; idle creeps up after hour 7; strongest at loading.
+#      Suresh (OP1007): expert, steady; idle 30+ min is abnormal *for him* even
+#                      though it is ordinary for the site (fleet thresholds miss it).
+#      Deepak (OP1031): high idle everywhere, belt off often (his "normal" is bad:
+#                      the twin says so against the site, not against himself).
+#    ~4% of hours carry a planted anomaly relative to that person's own pattern.
+# ---------------------------------------------------------------------------
+rng2 = np.random.default_rng(7)
+OPERATORS = {
+    # id: (name, machine kind, own machine, base idle, base cycles, fuel L/h, belt-off habit, tasks)
+    "OP1001": ("Ravi Kumar", "Excavator", "EXC001", 16, 12, 5.4, 0.08,
+               ["Trenching", "Material Loading", "Grading", "Earth Excavation"]),
+    "OP1007": ("Suresh Pal", "Excavator", "EXC004", 11, 14, 5.6, 0.0,
+               ["Earth Excavation", "Trenching", "Material Loading"]),
+    "OP1012": ("Anil Yadav", "Wheel loader", "WHL002", 14, 15, 6.3, 0.03, ["Material Loading"]),
+    "OP1021": ("Manoj Singh", "Dumper", "DT-03", 13, 3, 6.9, 0.0, ["Hauling"]),
+    "OP1024": ("Imran Khan", "Dumper", "DT-07", 10, 3, 6.7, 0.0, ["Hauling"]),
+    "OP1031": ("Deepak", "Backhoe loader", "BHL-11", 34, 6, 4.2, 0.35, ["Trenching", "Material Loading"]),
+}
+TASK_CYCLE = {"Trenching": 0.85, "Material Loading": 1.2, "Grading": 0.9, "Earth Excavation": 1.0, "Hauling": 1.0}
+op_rows = []
+for op, (name, kind, own, idle0, cyc0, fuel0, belt_habit, op_tasks) in OPERATORS.items():
+    for day in range(60):
+        weather = rng2.choice(WEATHER, p=[0.45, 0.25, 0.2, 0.1])
+        task_type = rng2.choice(op_tasks)
+        rental = op == "OP1001" and rng2.random() < 0.3  # Ravi sometimes runs a rental EXC (SAE)
+        machine = "RENTAL-SAE" if rental else own
+        for h in range(1, 11):
+            idle = rng2.normal(idle0, idle0 * 0.25)
+            cycles = rng2.normal(cyc0 * TASK_CYCLE.get(task_type, 1.0), cyc0 * 0.12)
+            harsh = rng2.poisson(1)
+            belt_off = 0.0
+            if weather == "Rainy":
+                idle *= 1.7 if op == "OP1001" else 1.15
+            if op == "OP1001":
+                if h >= 8:
+                    idle *= 1.4; cycles *= 0.9
+                if rental and h <= 2:
+                    harsh += rng2.poisson(4)
+            if idle > idle0 * 1.6 and rng2.random() < belt_habit * 6:
+                belt_off = rng2.uniform(8, 25)
+            elif rng2.random() < belt_habit:
+                belt_off = rng2.uniform(2, 10)
+            anomaly = rng2.random() < 0.04
+            if anomaly:
+                kind_a = rng2.choice(["idle", "belt", "harsh"])
+                if kind_a == "idle":
+                    idle = idle0 * rng2.uniform(2.2, 3.2); cycles *= 0.4
+                elif kind_a == "belt":
+                    belt_off = rng2.uniform(20, 45)
+                else:
+                    harsh += rng2.poisson(7)
+            idle = float(np.clip(idle, 0, 60))
+            cycles = max(cycles, 0)
+            op_rows.append(dict(
+                operator_id=op, operator=name, machine_kind=kind, machine_id=machine,
+                day=day, hour_of_shift=h, weather=weather, task_type=task_type,
+                idle_min=round(idle, 1), load_cycles=int(round(cycles)),
+                fuel_l=round(max(fuel0 * (1 - idle / 60 * 0.6) + rng2.normal(0, 0.3), 0.5), 2),
+                seatbelt_off_min=round(belt_off, 1), harsh_swings=int(harsh), planted_anomaly=int(anomaly)))
+pd.DataFrame(op_rows).to_csv(OUT / "operator_hours.csv", index=False)

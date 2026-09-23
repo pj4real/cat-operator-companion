@@ -23,6 +23,8 @@ Demo scope: one operator (Ravi, OP1001) on one machine (Cat 320 excavator, EXC00
 | Voice near-miss report + 60 s black box | Incident logging | Web Speech API (hi-IN), structured report |
 | Unusual hour detection | Unusual behaviour | Isolation forest + readable rules (`/score/behaviour`) |
 | Lessons from yesterday's events | Operator training hub | handheld screen |
+| Safe / Caution / Critical lamp on the machine display: one state fused from seatbelt, swing-radius distance, today's history and the operator's twin, always with a one-line reason; debounced so it can't flicker. Critical entries are logged; the supervisor sees each machine's state | Safety features | Rules (`frontend/src/lib/risk.ts`, `fuse_risk` in `api.py`) |
+| Digital twin: every hour is compared with the operator's *own* usual in the same conditions (task × weather × machine), not a site-wide rule. Learns from each shift at undock. "My twin" page shows how he works vs the site and what the twin found in his data | Unusual behaviour | Per-operator running statistics (`ml/twin.py`, `/twin/*`) |
 | Machine health before you start: failure risk in the next 50 h, top reason, walkaround item | Safety features, operator companion | Gradient boosting classifier (`/predict/health`) |
 | Fuel plan: when the tank hits reserve today and which task to refuel before | Daily task dashboard | Fuel-rate model × task-time model (`/forecast/fuel`) |
 | What-if on a task (change weather, skill, soil, re-predict) | Task time estimation | `/predict/task` |
@@ -62,6 +64,7 @@ If the API is not running, the app still works and falls back to cached predicti
 | Unusual behaviour | Was this hour unusual for this operator? | Isolation forest + rules that give a plain reason | 100% precision, 89% recall on planted anomalies. Flags exactly the 10:00 and next-day 09:00 rows of the official sample |
 | Machine health | Will this machine have a failure in the next 50 engine hours, and why? | Gradient boosting classifier on sensors + S·O·S oil sample | ROC AUC 0.83. Top 10% riskiest: 75% really fail, against a 16.5% base rate |
 | Fuel burn rate | How many litres per hour will this task burn? | Gradient boosting regressor, same features as task time | Error 0.87 L/h against 2.81 L/h for one flat rate |
+| Operator digital twin | Is this hour unusual *for this person, in these conditions*? | Running mean/spread per operator × condition (Welford, updated incrementally), z-score with plain reasons | On 900 held-out hours: catches 95% of planted anomalies with 67% of flags real, against 81% / 40% for one site-wide threshold. Agrees with the brief's alert column on all 4 official rows |
 
 Explanations: for each task, we re-predict with one factor set to an "easy day" value (sunny, expert, loam, new machine) and report the difference in minutes. That is the "+7 min: soil clay" chip. The health model uses the same trick: put one reading back to its healthy value, and the drop in risk is that reading's share ("Silicon 24 ppm, usual 8: +41 pts, check the air filter").
 

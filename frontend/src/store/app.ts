@@ -2,14 +2,14 @@ import { create } from 'zustand'
 import type { ShiftSummary } from '@/types'
 
 export type Workspace = 'operator' | 'supervisor'
-export type OperatorPage = 'today' | 'safety' | 'training' | 'activity'
+export type OperatorPage = 'today' | 'safety' | 'training' | 'activity' | 'twin'
 export type SupervisorPage = 'overview' | 'telemetry'
 export type Page = OperatorPage | SupervisorPage
 export type DeviceMode = 'handheld' | 'docking' | 'docked'
 export type Theme = 'light' | 'dark'
 
 const DEFAULT_PAGE: Record<Workspace, Page> = { operator: 'today', supervisor: 'overview' }
-const OPERATOR_PAGES: Page[] = ['today', 'safety', 'training', 'activity']
+const OPERATOR_PAGES: Page[] = ['today', 'safety', 'training', 'activity', 'twin']
 const SUPERVISOR_PAGES: Page[] = ['overview', 'telemetry']
 
 export function readHash(): { workspace: Workspace; page: Page } {

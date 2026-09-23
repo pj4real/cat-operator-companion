@@ -1,0 +1,202 @@
+{
+ "operator_id": "OP1001",
+ "name": "Ravi Kumar",
+ "machine_kind": "Excavator",
+ "hours": 600,
+ "contexts": 24,
+ "updates_today": 0,
+ "axes": [
+  {
+   "axis": "Efficiency",
+   "metric": "Load cycles",
+   "you": 11.6,
+   "site": 12.8,
+   "unit": "/h",
+   "delta_pct": -10,
+   "good": true,
+   "compare": "excavator operators"
+  },
+  {
+   "axis": "Idle discipline",
+   "metric": "Idle",
+   "you": 19.2,
+   "site": 17.5,
+   "unit": "min/h",
+   "delta_pct": 9,
+   "good": true,
+   "compare": "site average"
+  },
+  {
+   "axis": "Safety habits",
+   "metric": "Seatbelt off",
+   "you": 2.0,
+   "site": 1.2,
+   "unit": "min/h",
+   "delta_pct": 72,
+   "good": false,
+   "compare": "site average"
+  },
+  {
+   "axis": "Smoothness",
+   "metric": "Harsh swings",
+   "you": 1.2,
+   "site": 1.2,
+   "unit": "/h",
+   "delta_pct": 7,
+   "good": true,
+   "compare": "site average"
+  },
+  {
+   "axis": "Stamina",
+   "metric": "Idle, hours 8\u201310 vs 1\u20136",
+   "you": 23.6,
+   "site": 17.3,
+   "unit": "min/h",
+   "delta_pct": 37,
+   "good": false,
+   "compare": "your first 6 hours"
+  }
+ ],
+ "insights": [
+  {
+   "kind": "watch",
+   "text": "Seatbelt-off time rises 204% in rainy weather",
+   "detail": "6.1 vs your usual 2.0 min/h \u00b7 80 h of history"
+  },
+  {
+   "kind": "watch",
+   "text": "Idle rises 52% in rainy weather",
+   "detail": "29.1 vs your usual 19.2 min/h \u00b7 80 h of history"
+  },
+  {
+   "kind": "watch",
+   "text": "Harsh swings rise 43% on a rental with a different joystick pattern",
+   "detail": "1.8 vs your usual 1.2 /h \u00b7 190 h of history"
+  },
+  {
+   "kind": "watch",
+   "text": "Idle creeps up 37% after hour 7",
+   "detail": "23.6 vs 17.3 min/h in your first 6 hours: a break before hour 7 may help"
+  },
+  {
+   "kind": "watch",
+   "text": "Seatbelt-off time rises 32% on earth excavation",
+   "detail": "2.7 vs your usual 2.0 min/h \u00b7 150 h of history"
+  }
+ ],
+ "by_context": [
+  {
+   "task_type": "Earth Excavation",
+   "weather": "Cloudy",
+   "hours": 20,
+   "idle_min": 15.8,
+   "load_cycles": 11.6
+  },
+  {
+   "task_type": "Earth Excavation",
+   "weather": "Rainy",
+   "hours": 30,
+   "idle_min": 29.7,
+   "load_cycles": 11.6
+  },
+  {
+   "task_type": "Earth Excavation",
+   "weather": "Sunny",
+   "hours": 70,
+   "idle_min": 17.8,
+   "load_cycles": 11.5
+  },
+  {
+   "task_type": "Earth Excavation",
+   "weather": "Windy",
+   "hours": 30,
+   "idle_min": 17.0,
+   "load_cycles": 12.1
+  },
+  {
+   "task_type": "Grading",
+   "weather": "Cloudy",
+   "hours": 40,
+   "idle_min": 20.1,
+   "load_cycles": 9.9
+  },
+  {
+   "task_type": "Grading",
+   "weather": "Rainy",
+   "hours": 20,
+   "idle_min": 29.1,
+   "load_cycles": 11.2
+  },
+  {
+   "task_type": "Grading",
+   "weather": "Sunny",
+   "hours": 90,
+   "idle_min": 17.2,
+   "load_cycles": 10.5
+  },
+  {
+   "task_type": "Material Loading",
+   "weather": "Cloudy",
+   "hours": 80,
+   "idle_min": 17.5,
+   "load_cycles": 14.0
+  },
+  {
+   "task_type": "Material Loading",
+   "weather": "Sunny",
+   "hours": 70,
+   "idle_min": 17.4,
+   "load_cycles": 13.6
+  },
+  {
+   "task_type": "Material Loading",
+   "weather": "Windy",
+   "hours": 20,
+   "idle_min": 20.1,
+   "load_cycles": 13.8
+  },
+  {
+   "task_type": "Trenching",
+   "weather": "Cloudy",
+   "hours": 20,
+   "idle_min": 18.1,
+   "load_cycles": 10.3
+  },
+  {
+   "task_type": "Trenching",
+   "weather": "Rainy",
+   "hours": 30,
+   "idle_min": 28.5,
+   "load_cycles": 10.2
+  },
+  {
+   "task_type": "Trenching",
+   "weather": "Sunny",
+   "hours": 40,
+   "idle_min": 16.6,
+   "load_cycles": 9.4
+  },
+  {
+   "task_type": "Trenching",
+   "weather": "Windy",
+   "hours": 30,
+   "idle_min": 18.5,
+   "load_cycles": 9.8
+  }
+ ],
+ "vs_site_idle": 1.09,
+ "evaluation": {
+  "twin": {
+   "precision": 0.667,
+   "recall": 0.952,
+   "flags": 60
+  },
+  "site_threshold": {
+   "precision": 0.4,
+   "recall": 0.81,
+   "flags": 85
+  },
+  "test_hours": 900,
+  "planted": 42
+ }
+}

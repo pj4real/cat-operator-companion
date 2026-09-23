@@ -2,16 +2,17 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { toast } from 'sonner'
 import {
-  ArrowDownToLine, ArrowUpToLine, CircleDashed, Eye, EyeOff, Fuel, Gauge, Mic, Power, ShieldAlert, ShieldCheck,
+  ArrowDownToLine, ArrowUpToLine, CircleDashed, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
   Thermometer, Timer, TriangleAlert, Truck, Unplug, UserRound, Armchair, type LucideIcon,
 } from 'lucide-react'
 import SiteScene from './SiteScene'
 import { hourly, machine, operator } from '@/data/demo'
-import { classifyIdle, scoreBehaviour, structureIncident } from '@/lib/api'
+import { classifyIdle, scoreBehaviour, scoreTwin, structureIncident } from '@/lib/api'
+import { fuseRisk, latchRisk, type RiskLatch } from '@/lib/risk'
 import { DIESEL_INR, IDLE_BURN_LPH, SIM_SPEED, logEvent, siteClock, type Sim } from '@/lib/sim'
 import { isRowUnusual, ruleBasedBehaviour, type HourStats } from '@/lib/behaviour'
 import { cn, inr } from '@/lib/utils'
-import type { BehaviourResult, SimEvent, Zone } from '@/types'
+import type { BehaviourResult, RiskState, SimEvent, TwinScore, Zone } from '@/types'
 import { Button } from '@/components/ui/button'
 import { OutcomeTag } from '@/components/ui/card'
 import { Kbd, Meter } from '@/components/ui/controls'
@@ -91,6 +92,35 @@ function ScenarioButton({ onClick, icon: Icon, children, hotkey, active }: { onC
   )
 }
 
+/** Fused Safe / Caution / Critical state with its one-line reason: the display's headline. */
+function RiskLamp({ risk }: { risk: RiskState }) {
+  const cfg = {
+    safe: { icon: ShieldCheck, label: 'Safe', cls: 'border-good/50 bg-good-soft text-good-text' },
+    caution: { icon: TriangleAlert, label: 'Caution', cls: 'border-warning bg-warning text-black' },
+    critical: { icon: OctagonAlert, label: 'Critical', cls: 'border-critical bg-critical text-white' },
+  }[risk.level]
+  const Icon = cfg.icon
+  return (
+    <div role={risk.level === 'critical' ? 'alert' : 'status'} aria-live="polite"
+      className={cn('flex h-12 min-w-0 flex-1 items-center gap-3 rounded-md border px-3', cfg.cls)}>
+      <span className="relative flex shrink-0">
+        {risk.level === 'critical' && <span className="absolute inset-0 rounded-full bg-white/60" style={{ animation: 'var(--animate-pulse-ring)' }} aria-hidden />}
+        <Icon size={22} strokeWidth={2.4} className="relative" aria-hidden />
+      </span>
+      <span className="shrink-0 font-display text-[22px] leading-none font-bold tracking-wide uppercase">{cfg.label}</span>
+      <span className="h-6 w-px shrink-0 bg-current opacity-30" aria-hidden />
+      <span className="min-w-0 truncate text-[14px] font-medium leading-tight" title={risk.reason}>{risk.reason}</span>
+    </div>
+  )
+}
+
+// What Ravi is doing while docked: T102, loading at Bay 2 on the rental (SAE) Cat 320. The twin
+// compares this hour with his usual for exactly these conditions.
+const SAFETY_METRICS = new Set(['seatbelt_off_min', 'harsh_swings'])
+const safetyDeviation = (tw: TwinScore | null) => (tw?.unusual ? tw.deviations.find((d) => SAFETY_METRICS.has(d.metric)) : undefined)
+
+const TWIN_CONTEXT = { operator_id: operator.id, task_type: 'Material Loading', weather: 'Sunny', machine_id: 'RENTAL-SAE' }
+
 /* ---------- main ---------- */
 
 export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }) {
@@ -102,11 +132,37 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
   const [showScenarios, setShowScenarios] = useState(true)
   const blackbox = useRef<BlackBoxSample[]>([])
   const idleEpisode = useRef(false)
+  const [risk, setRisk] = useState<RiskState>({ level: 'safe', reason: 'Belt on · swing radius clear' })
+  const riskLatch = useRef<RiskLatch | null>(null)
+  const twinRef = useRef<TwinScore | null>(null)
+  const idleStart = useRef<number | null>(null)
+  const lastIdleMin = useRef(0)
 
-  // read the simulation 4x per second + keep a 60 s black box
+  // read the simulation 4x per second, fuse the risk state, keep a 60 s black box
   useEffect(() => {
     const id = setInterval(() => {
       setSnap({ ...sim, events: [...sim.events] })
+
+      // current idle episode, so a restart can say how long the machine sat
+      const idleNow = sim.engineOn && !sim.working && !sim.truckPresent
+      if (idleNow && idleStart.current === null) idleStart.current = sim.t
+      if (idleStart.current !== null) lastIdleMin.current = ((sim.t - idleStart.current) * SIM_SPEED) / 60
+      if (!idleNow && sim.working) idleStart.current = null
+
+      const tw = twinRef.current
+      const raw = fuseRisk({ zone: sim.zone, workerDist: sim.workerDist, seatbelt: sim.seatbelt, engineOn: sim.engineOn,
+        working: sim.working, truckPresent: sim.truckPresent, idleMin: lastIdleMin.current, events: sim.events,
+        // only safety-related deviations light the lamp; a slow hour is coaching, not a hazard
+        twinUnusual: !!safetyDeviation(tw), twinReason: safetyDeviation(tw)?.reason })
+      const prev = riskLatch.current?.shown
+      riskLatch.current = latchRisk(riskLatch.current, raw, performance.now())
+      const shown = riskLatch.current.shown
+      if (!prev || prev.level !== shown.level || prev.reason !== shown.reason) {
+        setRisk(shown)
+        // explainable alert: every entry into Critical is logged with its reason
+        // (the scene already logs the swing-radius entry itself)
+        if (shown.level === 'critical' && prev?.level !== 'critical' && sim.zone !== 'danger') logEvent(sim, 'danger', `Critical: ${shown.reason}`)
+      }
       blackbox.current.push({ t: sim.t, dist: sim.workerDist, zone: sim.zone, working: sim.working, belt: sim.seatbelt, truck: sim.truckPresent })
       blackbox.current = blackbox.current.slice(-240)
       if (sim.engineOn && !sim.seatbelt) sim.seatbeltOffSec += 0.25 * SIM_SPEED
@@ -128,13 +184,15 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
       .catch(() => setIdle({ reason: etaMin < 7 ? 'waiting_for_truck' : 'waste', confidence: 0.9, etaMin, live: false }))
   }, [isIdle, sim])
 
-  // unusual behaviour: this shift's per-hour rates (the model was trained on hourly stats), scored every 3 s.
-  // Idle counted = avoidable idle only. harsh_swings / raised_bucket_travel are fixed: the sim has no signal for them.
+  // unusual behaviour: this shift's per-hour rates, scored every 3 s against Ravi's twin (his own usual for
+  // these conditions), with the isolation forest as a second opinion. Idle counted = avoidable idle only.
+  // harsh_swings / raised_bucket_travel are fixed: the sim has no signal for them.
   const [beh, setBeh] = useState<(BehaviourResult & { hour: HourStats }) | null>(null)
+  const [twin, setTwin] = useState<TwinScore | null>(null)
   useEffect(() => {
     const score = () => {
       const hrs = (sim.t * SIM_SPEED) / 3600
-      if (hrs < 0.1) return
+      if (hrs < 0.4) return // per-hour rates from a few minutes are noise
       const perHour = (x: number) => x / hrs
       const cycles = Math.round(perHour(sim.cycles))
       const idleMin = Math.min(perHour(sim.idleWasteSec / 60), 60)
@@ -143,12 +201,21 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
       scoreBehaviour(hour)
         .then((r) => setBeh({ ...r, hour }))
         .catch(() => setBeh({ ...ruleBasedBehaviour(hour), hour, live: false }))
+      const hourOfShift = 9 - 7 + 1 + Math.floor((sim.t * SIM_SPEED) / 3600)
+      // cycles per hour the operator could actually work: waiting for a truck is justified idle
+      // (the idle-reason model says so), so it doesn't count against his loading rate
+      const justifiedH = Math.max(sim.idleSec - sim.idleWasteSec, 0) / 3600
+      const availableH = Math.max(hrs - justifiedH, 0.1)
+      scoreTwin({ ...TWIN_CONTEXT, hour_of_shift: hourOfShift, ...hour, load_cycles: Math.round(sim.cycles / availableH) })
+        .then((r) => { twinRef.current = r; setTwin(r) })
+        .catch(() => { twinRef.current = null; setTwin(null) })
     }
     score()
     const id = setInterval(score, 3000)
     return () => clearInterval(id)
   }, [sim])
-  const behFlag = !!beh && (beh.unusual || beh.reasons.length > 0)
+  // the twin decides when it's reachable; offline, the site-wide model + readable rules stand in
+  const behFlag = twin ? twin.unusual : !!beh && (beh.unusual || beh.reasons.length > 0)
 
   const etaMin = (snap.nextTruckEtaSec * SIM_SPEED) / 60
   const idleMin = snap.idleSec / 60
@@ -236,14 +303,11 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
       <header className="flex h-[72px] shrink-0 items-center gap-3 border-b border-border bg-surface px-3">
         <div className="flex h-12 items-center gap-3 rounded-md bg-brand px-3 text-brand-fg">
           <span className="font-display text-2xl leading-none font-bold">{machine.model}</span>
-          <span className="font-mono text-xs leading-tight font-medium opacity-80">{machine.id}<br />J1939</span>
+          <span className="font-mono text-xs leading-tight font-medium opacity-80">{machine.id}<br />{operator.id} · {patternLabel}</span>
         </div>
-        <div className="hidden min-w-0 leading-tight lg:block">
-          <div className="truncate text-[15px] font-semibold">{operator.name}</div>
-          <div className="font-mono text-xs text-fg-3">{operator.id} · pattern {patternLabel}</div>
-        </div>
+        <RiskLamp risk={risk} />
 
-        <div className={cn('mx-auto flex h-12 items-center gap-2.5 rounded-md border px-4 text-[15px] font-medium',
+        <div className={cn('flex h-12 shrink-0 items-center gap-2.5 rounded-md border px-4 text-[15px] font-medium',
           snap.truckPresent ? 'border-good/50 bg-good-soft text-good-text' : 'border-border bg-surface-2 text-fg')}>
           <Truck size={18} aria-hidden />
           {snap.truckPresent ? 'Dumper T-07 at Bay 2 · loading' : <>Next dumper T-03 in <b className="font-mono">{etaMin.toFixed(1)} min</b></>}
@@ -251,7 +315,6 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
 
         <div className="hidden items-center gap-2 md:flex">
           <Telltale icon={Armchair} label="Seatbelt" state={snap.seatbelt ? 'Fastened' : 'OFF'} tone={snap.seatbelt ? 'good' : 'critical'} />
-          <Telltale icon={Power} label="Engine" state={snap.engineOn ? `${rpm} rpm` : 'Off'} tone={snap.engineOn ? 'good' : 'neutral'} />
           <Telltale icon={CircleDashed} label="Swing zone" state={zone.label} tone={zone.tone} />
         </div>
         <div className="hidden px-2 text-right xl:block">
@@ -334,17 +397,26 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
             )}
           </Panel>
 
-          <Panel title="Unusual behaviour · per hour" outcome="Unusual behaviour" aside={beh && <ModelStatus live={beh.live} />} tone={behFlag ? 'warning' : undefined}>
-            {!beh ? <div className="text-sm text-fg-3">Scoring after the first few minutes…</div> : (
+          <Panel title="Unusual behaviour · vs your twin" outcome="Unusual behaviour"
+            aside={(twin || beh) && <ModelStatus live={twin ? twin.live : beh?.live} />} tone={behFlag ? 'warning' : undefined}>
+            {!beh && !twin ? <div className="text-sm text-fg-3">Scoring after the first few minutes…</div> : (
               <>
                 <StatusBadge tone={behFlag ? 'serious' : 'good'}>{behFlag ? 'Unusual for you' : 'Normal for you'}</StatusBadge>
                 <ul className="mt-2 space-y-1 text-sm text-fg-2">
-                  {beh.reasons.map((r) => <li key={r}>· {r}</li>)}
-                  {beh.unusual && beh.reasons.length === 0 && <li>· Flagged by the anomaly model; no single rule matched</li>}
+                  {(twin ? twin.reasons : beh?.reasons ?? []).slice(0, 3).map((r) => <li key={r}>· {r}</li>)}
+                  {!twin && beh?.unusual && beh.reasons.length === 0 && <li>· Flagged by the anomaly model; no single rule matched</li>}
                 </ul>
-                <div className="mt-2 font-mono text-[11px] text-fg-3">
-                  {beh.hour.load_cycles} cycles/h · {beh.hour.idle_min} min avoidable idle/h · belt off {beh.hour.seatbelt_off_min} min/h{beh.score !== undefined ? ` · score ${beh.score}` : ''}
-                </div>
+                {twin && (
+                  <p className="mt-2 text-[12.5px] text-fg-3">
+                    Compared with your usual for {twin.context} · {twin.context_hours} h of your history
+                    {beh && <> · site-wide model {beh.unusual ? 'also flags it' : 'sees nothing unusual'}</>}
+                  </p>
+                )}
+                {beh && (
+                  <div className="mt-1.5 font-mono text-[11px] text-fg-3">
+                    {beh.hour.load_cycles} cycles/h · {beh.hour.idle_min} min avoidable idle/h · belt off {beh.hour.seatbelt_off_min} min/h
+                  </div>
+                )}
               </>
             )}
           </Panel>

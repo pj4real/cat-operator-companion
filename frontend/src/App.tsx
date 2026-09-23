@@ -1,5 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { useApp } from '@/store/app'
+import { updateTwin } from '@/lib/api'
+import { operator } from '@/data/demo'
 import { createSim, logEvent, IDLE_BURN_LPH, SIM_SPEED, type Sim } from '@/lib/sim'
 import type { Lesson, ShiftSummary } from '@/types'
 import { AppShell } from '@/components/shared/AppShell'
@@ -7,6 +11,7 @@ import { TodayPage } from '@/components/operator/TodayPage'
 import { SafetyPage } from '@/components/operator/SafetyPage'
 import { TrainingPage } from '@/components/operator/TrainingPage'
 import { ActivityPage } from '@/components/operator/ActivityPage'
+import { TwinPage } from '@/components/operator/TwinPage'
 import { FleetOverviewPage, TelemetryAuditPage } from '@/components/fleet/FleetPages'
 import { DockTransition } from '@/components/docked/DockTransition'
 import { DockedMode } from '@/components/docked/DockedMode'
@@ -45,6 +50,7 @@ const PAGES = {
   safety: SafetyPage,
   training: TrainingPage,
   activity: ActivityPage,
+  twin: TwinPage,
   overview: FleetOverviewPage,
   telemetry: TelemetryAuditPage,
 }
@@ -56,6 +62,7 @@ function Loading({ label }: { label: string }) {
 export default function App() {
   const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl } = useApp()
   const sim = useRef<Sim>(createSim())
+  const queryClient = useQueryClient()
 
   // The in-cab display is always dark (glare, night work); the handheld follows the user's theme.
   useEffect(() => {
@@ -75,8 +82,23 @@ export default function App() {
   }, [setDevice])
 
   const undock = () => {
-    setToday(summarise(sim.current))
+    const today = summarise(sim.current)
+    setToday(today)
     navigate('operator', 'today')
+    // fold today's shift into Ravi's twin (per-hour rates, same context the docked display scored against)
+    const hrs = today.dockedMin / 60
+    if (hrs < 0.25) return
+    const perHour = (x: number) => +Math.min(x / hrs, 60).toFixed(1)
+    updateTwin({ operator_id: operator.id, task_type: 'Material Loading', weather: 'Sunny', machine_id: 'RENTAL-SAE',
+      hour_of_shift: 3, idle_min: perHour(today.wasteMin),
+      // per workable hour: truck waits are justified idle and don't count against the loading rate
+      load_cycles: Math.round(today.cycles / Math.max(hrs - (today.idleMin - today.wasteMin) / 60, 0.1)),
+      fuel_l: 5, seatbelt_off_min: perHour(today.beltOffMin), harsh_swings: 1 })
+      .then((r) => {
+        queryClient.invalidateQueries({ queryKey: ['twin'] })
+        toast.success('Your twin learned from today', { description: `${r.twin_hours_before} → ${r.twin_hours} hours of your own history` })
+      })
+      .catch(() => { /* offline: the shift is kept on the tablet and synced later */ })
   }
 
   if (device === 'docking') return <DockTransition onDone={dockDone} />

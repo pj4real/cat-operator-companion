@@ -2,7 +2,7 @@ import { Bell, ChevronRight, CircleDot, Fuel, Gauge, HeartPulse, Map as MapIcon,
 import { useFleet } from '@/hooks/queries'
 import { useApp } from '@/store/app'
 import { cn, inr } from '@/lib/utils'
-import type { FleetData, FleetMachine } from '@/types'
+import type { FleetData, FleetMachine, RiskLevel3 } from '@/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Kpi } from '@/components/ui/kpi'
 import { EmptyState } from '@/components/ui/controls'
@@ -11,6 +11,9 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { TelemetryTable } from '@/components/shared/TelemetryTable'
 import { IDLE_REASONS, RISK } from '@/lib/constants'
 
+const RISK3: Record<RiskLevel3, { tone: Tone; label: string }> = {
+  safe: { tone: 'good', label: 'Safe' }, caution: { tone: 'warning', label: 'Caution' }, critical: { tone: 'critical', label: 'Critical' },
+}
 const ALERT_TONE: Record<string, Tone> = { high: 'critical', medium: 'serious', low: 'neutral' }
 
 function IdleStack({ m, className }: { m: FleetMachine; className?: string }) {
@@ -49,7 +52,7 @@ function MachinesTable({ data }: { data: FleetData }) {
             <th scope="col" className="px-3 py-2.5">Idle by reason</th>
             <th scope="col" className="px-3 py-2.5">Fuel</th>
             <th scope="col" className="px-3 py-2.5">Health · 50 h</th>
-            <th scope="col" className="px-3 py-2.5">This hour</th>
+            <th scope="col" className="px-3 py-2.5">Risk now</th>
             <th scope="col" className="px-3 py-2.5"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
@@ -88,7 +91,8 @@ function MachinesTable({ data }: { data: FleetData }) {
                   <div className="mt-1 max-w-40 truncate text-xs text-fg-3">{m.health.component || 'normal'}</div>
                 </td>
                 <td className="px-3 py-3">
-                  {m.behaviour.unusual ? <StatusBadge tone="serious" size="sm">Unusual</StatusBadge> : <span className="text-[13px] text-fg-3">Normal</span>}
+                  <StatusBadge tone={RISK3[m.risk.level].tone} size="sm">{RISK3[m.risk.level].label}</StatusBadge>
+                  <div className="mt-1 max-w-48 truncate text-xs text-fg-3" title={m.risk.reason}>{m.risk.reason}</div>
                 </td>
                 <td className="px-2 py-3 text-right">
                   <button onClick={(e) => { e.stopPropagation(); selectMachine(m.id) }} aria-label={`View ${m.id}`}
@@ -120,6 +124,20 @@ function MachineDetail({ m }: { m: FleetMachine }) {
           <StatusBadge tone={RISK[m.health.level].tone} size="sm" className="mt-1">{RISK[m.health.level].label} risk</StatusBadge>
         </div>
       </div>
+
+      <section className={cn('rounded-md border p-3', m.risk.level === 'critical' ? 'border-critical bg-critical-soft' : m.risk.level === 'caution' ? 'border-warning/60 bg-warning-soft' : 'border-border bg-surface-2')}>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="label-caps text-fg-3">Risk now</h3>
+          <StatusBadge tone={RISK3[m.risk.level].tone} size="sm">{RISK3[m.risk.level].label}</StatusBadge>
+        </div>
+        <p className="mt-1 font-medium text-fg">{m.risk.reason}</p>
+        {m.twin.reasons.length > 0 && (
+          <>
+            <h4 className="label-caps mt-3 mb-1 text-fg-3">Vs this operator's own usual</h4>
+            <ul className="space-y-0.5 text-fg-2">{m.twin.reasons.slice(0, 3).map((r) => <li key={r}>· {r}</li>)}</ul>
+          </>
+        )}
+      </section>
 
       <section>
         <h3 className="label-caps mb-2 text-fg-3">Why the health model says this</h3>
@@ -158,12 +176,6 @@ function MachineDetail({ m }: { m: FleetMachine }) {
           : <StatusBadge tone="good" className="mt-2">Enough for today, {f.fuel_left_end_l} L left at shift end</StatusBadge>}
       </section>
 
-      {m.behaviour.unusual && (
-        <section className="rounded-md border border-serious/40 bg-serious-soft p-3">
-          <h3 className="label-caps mb-1 text-serious-text">Unusual hour</h3>
-          <ul className="space-y-0.5 text-fg-2">{m.behaviour.reasons.map((r) => <li key={r}>· {r}</li>)}</ul>
-        </section>
-      )}
     </div>
   )
 }
@@ -212,6 +224,9 @@ export function FleetOverviewPage() {
       <PageHeader eyebrow={`SITE SUPERVISOR · TODAY 13:30`} title="Site overview"
         meta={<>
           <span>{data.site}</span><span className="text-fg-3">·</span><span>{data.machines.length} machines, mixed fleet</span>
+          {data.machines.some((m) => m.risk.level === 'critical') && (
+            <StatusBadge tone="critical">{data.machines.filter((m) => m.risk.level === 'critical').length} critical now</StatusBadge>
+          )}
           <ModelStatus live={data.live} />
         </>} />
 
@@ -265,22 +280,22 @@ export function FleetOverviewPage() {
 export function TelemetryAuditPage() {
   const { data } = useFleet()
   if (!data) return null
-  const agree = data.official_rows.filter((r) => r.unusual === (r.alert === 'Yes')).length
+  const agree = data.official_rows.filter((r) => r.twin_unusual === (r.alert === 'Yes')).length
   return (
     <div className="stagger space-y-6">
       <PageHeader eyebrow="EXC001 · OP1001 · 2025-05-01 → 05-02" title="Telemetry audit"
-        meta={<>The official sample from the brief, scored by the unusual-behaviour model (isolation forest + readable rules). <ModelStatus live={data.live} /></>} />
+        meta={<>The official sample from the brief, scored against OP1001's digital twin: his own usual on EXC001, not a site-wide rule. <ModelStatus live={data.live} /></>} />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi label="Rows scored" value={data.official_rows.length} sub="hourly telemetry" />
-        <Kpi label="Flagged unusual" value={data.official_rows.filter((r) => r.unusual).length} sub="by our model" valueClassName="text-serious-text" />
+        <Kpi label="Flagged unusual" value={data.official_rows.filter((r) => r.twin_unusual).length} sub="by Ravi's twin" valueClassName="text-serious-text" />
         <Kpi label="Agreement" value={`${agree}/${data.official_rows.length}`} sub="with the brief's alert column" valueClassName="text-good-text" />
         <Kpi label="Belt-off rows" value={data.official_rows.filter((r) => r.seatbelt === 'Unfastened').length} sub="all during long, low-work idles" outcome="Seatbelt compliance" />
       </div>
       <Card>
         <CardHeader icon={TableProperties} title="Official telemetry sample" outcomes={['Identify unusual behaviour in machine usage']} />
         <CardBody>
-          <TelemetryTable rows={data.official_rows.map((r) => ({ time: r.time, fuel: r.fuel_l, cycles: r.load_cycles, idle: r.idle_min, belt: r.seatbelt, alert: r.alert, unusual: r.unusual, reasons: r.reasons }))} />
-          <p className="mt-3 text-[13px] text-fg-3">Assumption: an “Unfastened” hour is scored as 30 min belt-off. Unbuckling appears only in the high-idle, low-work hours, which is why the docked display has a restart guard.</p>
+          <TelemetryTable rows={data.official_rows.map((r) => ({ time: r.time, fuel: r.fuel_l, cycles: r.load_cycles, idle: r.idle_min, belt: r.seatbelt, alert: r.alert, unusual: r.twin_unusual, reasons: r.twin_reasons }))} />
+          <p className="mt-3 text-[13px] text-fg-3">The site-wide isolation forest agrees on {data.official_rows.filter((r) => r.unusual === r.twin_unusual).length} of {data.official_rows.length} rows. Assumption: an “Unfastened” hour is scored as 30 min belt-off. Unbuckling appears only in the high-idle, low-work hours, which is why the docked display has a restart guard.</p>
         </CardBody>
       </Card>
     </div>
