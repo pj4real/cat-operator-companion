@@ -30,6 +30,8 @@ export interface Sim {
   idleSinceSec: number
   seatbeltOffSec: number
   patternFixed?: boolean
+  /** help manual: a part of the machine the 3D view is focused on (e.g. 'start-button') */
+  focus?: string | null
 }
 
 export function createSim(): Sim {

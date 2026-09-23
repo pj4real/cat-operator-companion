@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
   Html,
   OrbitControls,
@@ -91,13 +91,111 @@ function toothRow(count, spread, y, z) {
   ))
 }
 
+// Cab interior, in house-local coordinates. The operator faces +x; their right hand is +z.
+// Simple forms (seat, two consoles, joysticks, keypad, start button) so the help manual can
+// point at the real control while its video plays.
+const START_BUTTON = [0.66, 1.495, 1.1]
+const CAB_EYE = [0.2, 2.12, 0.5] // behind and above the seat, over the operator's right shoulder
+
+function CabInterior({ sim, parts }) {
+  const button = parts.startButton
+  const halo = useRef()
+  const light = useRef()
+  useFrame(({ clock }) => {
+    const on = sim.focus === 'start-button'
+    const pulse = on ? 0.5 + 0.5 * Math.sin(clock.elapsedTime * 5) : 0
+    if (button.current) button.current.material.emissiveIntensity = on ? 1.5 + pulse * 5 : 0.35
+    if (halo.current) {
+      halo.current.visible = on
+      const k = 1 + ((clock.elapsedTime * 0.9) % 1) * 1.6
+      halo.current.scale.setScalar(k)
+      halo.current.material.opacity = on ? 0.9 * (1 - (k - 1) / 1.6) : 0
+    }
+    if (light.current) light.current.intensity = on ? 0.6 + pulse * 1.6 : 0
+  })
+  const dark = { color: '#1b1d21', roughness: 0.7, metalness: 0.2 }
+  return (
+    <group>
+      {/* floor + seat */}
+      <mesh position={[0.85, 1.18, 0.75]}><boxGeometry args={[0.9, 0.04, 0.86]} /><meshStandardMaterial {...dark} /></mesh>
+      <mesh position={[0.62, 1.42, 0.75]} castShadow><boxGeometry args={[0.42, 0.14, 0.44]} /><meshStandardMaterial color="#2b2e33" roughness={0.9} /></mesh>
+      <mesh position={[0.42, 1.78, 0.75]} rotation-z={-0.12} castShadow><boxGeometry args={[0.1, 0.62, 0.44]} /><meshStandardMaterial color="#2b2e33" roughness={0.9} /></mesh>
+      {/* left and right consoles with joysticks */}
+      {[0.44, 1.06].map((z) => (
+        <group key={z}>
+          <mesh position={[0.8, 1.4, z]} castShadow><boxGeometry args={[0.5, 0.16, 0.14]} /><meshStandardMaterial {...dark} /></mesh>
+          <mesh position={[0.9, 1.56, z]}><cylinderGeometry args={[0.018, 0.018, 0.18, 8]} /><meshStandardMaterial color="#0e0f11" /></mesh>
+          <mesh position={[0.9, 1.66, z]}><sphereGeometry args={[0.035, 12, 12]} /><meshStandardMaterial color="#0e0f11" roughness={0.5} /></mesh>
+        </group>
+      ))}
+      {/* operator ID keypad on the right console */}
+      <mesh position={[0.78, 1.49, 1.07]}><boxGeometry args={[0.1, 0.012, 0.08]} /><meshStandardMaterial color="#30343a" roughness={0.6} /></mesh>
+      {/* engine start button */}
+      <mesh ref={button} position={START_BUTTON}>
+        <cylinderGeometry args={[0.028, 0.03, 0.022, 20]} />
+        <meshStandardMaterial color="#d6261f" emissive="#ff3b2f" emissiveIntensity={0.35} toneMapped={false} />
+      </mesh>
+      <mesh ref={halo} position={[START_BUTTON[0], START_BUTTON[1] + 0.013, START_BUTTON[2]]} rotation-x={-Math.PI / 2} visible={false}>
+        <ringGeometry args={[0.034, 0.042, 32]} />
+        <meshBasicMaterial color="#ffd23a" transparent opacity={0} toneMapped={false} />
+      </mesh>
+      <pointLight ref={light} position={[START_BUTTON[0], START_BUTTON[1] + 0.12, START_BUTTON[2]]} color="#ff5a3c" intensity={0} distance={0.9} />
+      {/* monitor on the front-right pillar */}
+      <mesh position={[1.2, 1.9, 1.02]} rotation-y={-0.6}><boxGeometry args={[0.02, 0.16, 0.22]} /><meshStandardMaterial color="#0b0c0e" emissive="#1c3b66" emissiveIntensity={0.6} /></mesh>
+      <Html position={[START_BUTTON[0] - 0.02, START_BUTTON[1] + 0.13, START_BUTTON[2] + 0.02]} center distanceFactor={0.55} zIndexRange={[20, 0]}
+        style={{ pointerEvents: 'none', opacity: 0, transition: 'opacity 400ms' }} className="cab-callout">
+        <div className="whitespace-nowrap rounded-md bg-black/85 px-2.5 py-1.5 text-[12px] font-semibold text-white ring-1 ring-yellow-400/70">
+          Engine start button
+        </div>
+      </Html>
+    </group>
+  )
+}
+
+/**
+ * Flies the camera into the cab (over the operator's shoulder, looking at the focused control)
+ * and back out again. The house can swing, so targets are recomputed from live world positions.
+ */
+function CameraRig({ sim, parts }) {
+  const { camera, controls } = useThree()
+  const home = useRef({ pos: new THREE.Vector3(-12.5, 8.5, 14), target: new THREE.Vector3(1.4, 1.1, 0.4) })
+  const wasFocused = useRef(false)
+  const eye = useMemo(() => new THREE.Vector3(), [])
+  const look = useMemo(() => new THREE.Vector3(), [])
+  useFrame((_, dt) => {
+    if (!controls) return
+    const focused = sim.focus === 'start-button' && parts.startButton?.current && parts.house.current
+    const k = 1 - Math.exp(-dt * 2.2)
+    if (focused) {
+      if (!wasFocused.current) {
+        home.current.pos.copy(camera.position); home.current.target.copy(controls.target)
+        controls.minDistance = 0.05
+        document.querySelectorAll('.cab-callout').forEach((el) => { el.style.opacity = '1' })
+      }
+      parts.startButton.current.getWorldPosition(look)
+      eye.set(...CAB_EYE); parts.house.current.localToWorld(eye)
+      camera.position.lerp(eye, k)
+      controls.target.lerp(look, k)
+      controls.update()
+    } else if (wasFocused.current) {
+      camera.position.lerp(home.current.pos, k)
+      controls.target.lerp(home.current.target, k)
+      controls.update()
+      document.querySelectorAll('.cab-callout').forEach((el) => { el.style.opacity = '0' })
+      if (camera.position.distanceTo(home.current.pos) < 0.05) { controls.minDistance = 9; wasFocused.current = false; return }
+    }
+    if (focused) wasFocused.current = true
+  })
+  return null
+}
+
 // Premium-leaning procedural Cat-style excavator. Kept fully procedural (zero
 // third-party asset / licensing risk) but rebuilt with rounded panels, glazed
 // cab, worn-metal bucket and cosmetic hydraulics instead of flat boxes.
 // The four pivot groups (house/boom/stick/bucket) keep the exact same local
 // offsets as the original mesh so the Controller's keyframed rotations below
 // produce the same dig-swing-dump motion as before.
-function Excavator({ parts }) {
+function Excavator({ parts, sim }) {
   // clearcoat (meshPhysicalMaterial) is reserved for the one big hero panel;
   // everywhere else uses a plain meshStandardMaterial with the same look,
   // which is much cheaper per-pixel across many small parts.
@@ -177,6 +275,7 @@ function Excavator({ parts }) {
           <meshStandardMaterial {...paintStd} />
         </mesh>
         <BeaconLight position={[0.85, 2.6, 0.75]} />
+        <CabInterior sim={sim} parts={parts} />
 
         {/* boom -> stick -> bucket */}
         <group ref={parts.boom} position={[1.2, 1.0, -0.25]}>
@@ -400,8 +499,13 @@ function Controller({ sim, parts, truckRef, workerRef, onZone }) {
       // same rule as the switch-off nudge: truck more than 3 site-minutes away = avoidable idle
       if (!tp.present && (tp.eta * 15) / 60 > 3) sim.idleWasteSec += dt * 15
     }
+    // help manual: park the machine (arm down, cab forward) while the camera is inside
+    if (sim.focus) {
+      const total = SEG * (KEYS.length - 1)
+      cycleT.current = Math.round(cycleT.current / total) * total
+    }
     // excavator pose
-    if (sim.working) {
+    if (sim.working && !sim.focus) {
       const before = Math.floor(cycleT.current / (SEG * (KEYS.length - 1)))
       cycleT.current += dt
       const after = Math.floor(cycleT.current / (SEG * (KEYS.length - 1)))
@@ -419,7 +523,7 @@ function Controller({ sim, parts, truckRef, workerRef, onZone }) {
 }
 
 export default function SiteScene({ sim, onZone = () => {} }) {
-  const parts = { house: useRef(), boom: useRef(), stick: useRef(), bucket: useRef() }
+  const parts = { house: useRef(), boom: useRef(), stick: useRef(), bucket: useRef(), startButton: useRef() }
   const truckRef = useRef()
   const workerRef = useRef()
   const worker2 = useRef()
@@ -440,7 +544,7 @@ export default function SiteScene({ sim, onZone = () => {} }) {
       <directionalLight position={[-16, 12, -10]} intensity={0.35} color="#8fb3ff" />
       <Environment preset="city" background={false} environmentIntensity={0.6} resolution={64} />
       <SiteDressing />
-      <Excavator parts={parts} />
+      <Excavator parts={parts} sim={sim} />
       <ZoneRing sim={sim} />
       <ContactShadows position={[0, 0.02, 0]} opacity={0.55} scale={22} blur={2.2} far={9} resolution={512} color="#000000" frames={1} />
       <Suspense fallback={null}>
@@ -449,7 +553,8 @@ export default function SiteScene({ sim, onZone = () => {} }) {
         <Worker workerRef={worker2} url="/models/worker-e.glb" position={[-20, 0, 4]} label="Spotter · Anbu" />
       </Suspense>
       <Controller sim={sim} parts={parts} truckRef={truckRef} workerRef={workerRef} onZone={onZone} />
-      <OrbitControls target={[1.4, 1.1, 0.4]} maxPolarAngle={1.35} minDistance={9} maxDistance={55} />
+      <OrbitControls makeDefault target={[1.4, 1.1, 0.4]} maxPolarAngle={1.35} minDistance={9} maxDistance={55} />
+      <CameraRig sim={sim} parts={parts} />
     </Canvas>
   )
 }

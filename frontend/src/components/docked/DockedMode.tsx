@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { toast } from 'sonner'
 import {
-  ArrowDownToLine, ArrowUpToLine, CircleDashed, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
+  ArrowDownToLine, ArrowUpToLine, Box, CircleDashed, CircleHelp, X, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
   Thermometer, Timer, TriangleAlert, Truck, Unplug, UserRound, Armchair, type LucideIcon,
 } from 'lucide-react'
 import SiteScene from './SiteScene'
+import { HelpPanel } from './HelpPanel'
+import type { HelpItem } from '@/data/help'
 import { hourly, machine, operator } from '@/data/demo'
 import { classifyIdle, scoreBehaviour, scoreTwin, structureIncident } from '@/lib/api'
 import { fuseRisk, latchRisk, type RiskLatch } from '@/lib/risk'
@@ -130,6 +132,11 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
   const [report, setReport] = useState<Report | null>(null)
   const [listening, setListening] = useState(false)
   const [showScenarios, setShowScenarios] = useState(true)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [helpItem, setHelpItem] = useState<HelpItem | null>(null)
+  // a question with a 3D guide points the site view at that control; anything else releases it
+  const selectHelp = (item: HelpItem | null) => { setHelpItem(item); sim.focus = item?.focus ?? null }
+  const closeHelp = () => { setHelpOpen(false); selectHelp(null) }
   const blackbox = useRef<BlackBoxSample[]>([])
   const idleEpisode = useRef(false)
   const [risk, setRisk] = useState<RiskState>({ level: 'safe', reason: 'Belt on · swing radius clear' })
@@ -285,7 +292,8 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement)?.closest('input, textarea, [role=dialog]')) return
       const k = e.key.toLowerCase()
-      if (k === 'h') setShowScenarios((v) => !v)
+      if (e.key === '?') setHelpOpen((v) => { if (v) sim.focus = null; return !v })
+      else if (k === 'h') setShowScenarios((v) => !v)
       else if (k === 'w') toggleWorker()
       else if (k === 'b') beltOff()
       else if (k === 'v') startVoice()
@@ -321,10 +329,12 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
           <div className="font-mono text-[26px] leading-none font-medium tabular">{siteClock(snap)}</div>
           <div className="label-caps text-[10px] text-fg-3">site time</div>
         </div>
-        <Button variant="secondary" size="md" onClick={onUndock}><Unplug size={17} /> Undock</Button>
+        <Button variant={helpOpen ? 'inverse' : 'secondary'} size="md" onClick={() => (helpOpen ? closeHelp() : setHelpOpen(true))}
+          aria-expanded={helpOpen} aria-label="Help and how-to videos (?)"><CircleHelp size={18} /> Help</Button>
+        <Button variant="secondary" size="md" onClick={() => { sim.focus = null; onUndock() }}><Unplug size={17} /> Undock</Button>
       </header>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         {/* 3D site view */}
         <div className="relative min-w-0 flex-1">
           <SiteScene sim={sim} />
@@ -339,6 +349,15 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
           {snap.zone === 'caution' && (
             <div className="pointer-events-none absolute top-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-md bg-warning px-5 py-2.5 font-display text-lg font-bold tracking-wide text-black uppercase shadow-3" role="status">
               <TriangleAlert size={20} aria-hidden /> Worker approaching · 4 s to conflict
+            </div>
+          )}
+
+          {helpItem?.focus && (
+            <div className="absolute top-4 left-4 flex items-center gap-2 rounded-md bg-brand py-1.5 pr-1.5 pl-3 text-brand-fg shadow-3" role="status">
+              <Box size={16} aria-hidden />
+              <span className="text-sm font-semibold">3D guide · {helpItem.focusLabel}</span>
+              <button onClick={() => selectHelp(null)} aria-label="Leave the 3D guide"
+                className="ml-1 flex h-8 w-8 items-center justify-center rounded-sm hover:bg-black/10"><X size={16} /></button>
             </div>
           )}
 
@@ -455,6 +474,8 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
             </Tabs.Content>
           </Tabs.Root>
         </aside>
+
+        {helpOpen && <HelpPanel selected={helpItem} onSelect={selectHelp} onClose={closeHelp} />}
       </div>
 
       {/* joystick pattern mismatch */}
