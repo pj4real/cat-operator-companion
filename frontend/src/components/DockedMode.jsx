@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Fuel, Gauge, Thermometer, Timer, Truck, ShieldAlert, ShieldCheck, Power, Mic, UserRound, Unplug, AlertTriangle, CircleDot } from 'lucide-react'
 import SiteScene from './SiteScene'
-import { machine, operator } from '../data/demo'
-import { classifyIdle } from '../lib/api'
+import { machine, operator, hourly } from '../data/demo'
+import { classifyIdle, scoreBehaviour, structureIncident } from '../lib/api'
 import { SIM_SPEED, DIESEL_INR, logEvent } from '../lib/sim'
 
 const IDLE_TEXT = {
@@ -11,6 +11,22 @@ const IDLE_TEXT = {
   heat_rest: 'Heat rest (AC)',
   warm_up: 'Warm-up',
   cool_down: 'Cool-down',
+}
+
+// mirrors the readable rule in ml/api.py's /score/behaviour, used when the API is unreachable
+function ruleBasedBehaviour(h) {
+  const reasons = []
+  if (h.idle_min > 40 && h.load_cycles <= 3) reasons.push(`Idle ${h.idle_min.toFixed(0)} min with only ${h.load_cycles} load cycles`)
+  if (h.seatbelt_off_min > 5) reasons.push(`Seatbelt off for ${h.seatbelt_off_min.toFixed(0)} min while engine running`)
+  if (h.harsh_swings >= 5) reasons.push(`${h.harsh_swings} harsh swings this hour`)
+  if (h.raised_bucket_travel >= 2) reasons.push('Travelling with bucket raised')
+  return { unusual: reasons.length > 0, score: reasons.length ? 0.8 : 0.1, reasons }
+}
+
+// same rule, applied to the static official-telemetry rows (client-side: those rows are fixed
+// demo data, not live sim state, so there's nothing to gain by round-tripping them to the API)
+function isRowUnusual(row) {
+  return (row.idle > 40 && row.cycles <= 3) || row.belt === 'Unfastened'
 }
 
 function Stat({ icon: Icon, label, value, tone = '' }) {
@@ -35,10 +51,12 @@ export default function DockedMode({ sim, onUndock }) {
   const [snap, setSnap] = useState({ ...sim })
   const [patternOpen, setPatternOpen] = useState(true)
   const [idle, setIdle] = useState(null)
+  const [behaviour, setBehaviour] = useState(null)
   const [report, setReport] = useState(null)
   const [listening, setListening] = useState(false)
   const blackbox = useRef([])
   const idleEpisode = useRef(false)
+  const behaviourMinute = useRef(-1)
 
   // read the simulation 4x per second + keep a 60 s black box
   useEffect(() => {
@@ -46,9 +64,29 @@ export default function DockedMode({ sim, onUndock }) {
       setSnap({ ...sim, events: [...sim.events] })
       blackbox.current.push({ t: sim.t, dist: sim.workerDist, zone: sim.zone, working: sim.working, belt: sim.seatbelt, truck: sim.truckPresent })
       blackbox.current = blackbox.current.slice(-240)
+      // seatbelt-off tracking: real, accumulated in "site seconds" like idleSec
+      if (sim.engineOn && !sim.seatbelt) sim.seatbeltOffSec += 0.25 * SIM_SPEED
     }, 250)
     return () => clearInterval(id)
   }, [sim])
+
+  // unusual-behaviour score, throttled to roughly once per simulated minute
+  useEffect(() => {
+    const simMinute = Math.floor((snap.t * SIM_SPEED) / 60)
+    if (simMinute === behaviourMinute.current) return
+    behaviourMinute.current = simMinute
+    const stats = {
+      fuel_l: snap.idleFuelL, // real, but only idle-hour fuel is modeled
+      load_cycles: snap.cycles,
+      idle_min: snap.idleSec / 60,
+      seatbelt_off_min: snap.seatbeltOffSec / 60,
+      harsh_swings: 0, // approximated: no swing-dynamics signal exists in the sim yet
+      raised_bucket_travel: 0, // approximated: no bucket-height signal exists in the sim yet
+    }
+    scoreBehaviour(stats)
+      .then(setBehaviour)
+      .catch(() => setBehaviour({ ...ruleBasedBehaviour(stats), live: false }))
+  }, [snap])
 
   // idle reason from the ML model, once per idle episode
   const isIdle = snap.engineOn && !snap.working && !snap.truckPresent
@@ -82,21 +120,33 @@ export default function DockedMode({ sim, onUndock }) {
       setListening(false)
       const box = blackbox.current.filter((b) => b.t > sim.t - 60)
       const minDist = Math.min(...box.map((b) => b.dist), 99)
-      setReport({
+      const machineState = box.at(-1)?.working ? 'Working (swinging)' : 'Stationary'
+      const ruleBasedStructured = {
+        type: 'Near-miss',
+        category: /dumper|truck|tipper/i.test(text) ? 'Vehicle interaction' : /worker|aadmi|labour|person/i.test(text) ? 'Person in swing zone' : 'Other',
+        severity: minDist < 7 ? 'High' : 'Medium',
+        location: 'Zone B, Bay 2 (auto from machine position)',
+        machine: `${machine.model} ${machine.id}`,
+        operator: operator.id,
+        machine_state: machineState,
+        suggested_action: 'Spotter at Bay 2 during reversing; review with dumper driver',
+      }
+      const finishReport = (structured, live) => {
+        setReport({ transcript: text, structured, live, blackbox: box.filter((_, i) => i % 20 === 0).slice(-6) })
+        logEvent(sim, 'warn', `Near-miss reported by voice${live ? ' · LLM structured' : ''}. Black box attached.`)
+      }
+      // the LLM only formats what the operator said and the real black-box distance;
+      // it never decides on its own -- rule-based fallback if the key isn't configured
+      structureIncident({
         transcript: text,
-        structured: {
-          type: 'Near-miss',
-          category: /dumper|truck|tipper/i.test(text) ? 'Vehicle interaction' : /worker|aadmi|labour|person/i.test(text) ? 'Person in swing zone' : 'Other',
-          severity: minDist < 7 ? 'High' : 'Medium',
-          location: 'Zone B, Bay 2 (auto from machine position)',
-          machine: `${machine.model} ${machine.id}`,
-          operator: operator.id,
-          machine_state: box.at(-1)?.working ? 'Working (swinging)' : 'Stationary',
-          suggested_action: 'Spotter at Bay 2 during reversing; review with dumper driver',
-        },
-        blackbox: box.filter((_, i) => i % 20 === 0).slice(-6),
+        machine_model: machine.model,
+        machine_id: machine.id,
+        operator_id: operator.id,
+        machine_state: machineState,
+        min_dist_m: minDist,
       })
-      logEvent(sim, 'warn', 'Near-miss reported by voice. Black box attached.')
+        .then((r) => finishReport(r, true))
+        .catch(() => finishReport(ruleBasedStructured, false))
     }
     if (!SR) { setListening(true); setTimeout(() => finish(fallback), 1500); return }
     const rec = new SR()
@@ -108,7 +158,7 @@ export default function DockedMode({ sim, onUndock }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-ink text-slate-100">
       {/* top strip */}
       <div className="flex items-center gap-3 border-b border-line bg-panel px-4 py-2">
         <div className="rounded-md bg-cat px-2 py-0.5 text-sm font-extrabold text-black">{machine.model}</div>
@@ -174,11 +224,69 @@ export default function DockedMode({ sim, onUndock }) {
             )}
           </div>
 
+          <div className={`rounded-xl border p-3 ${behaviour?.unusual ? 'border-danger/60 bg-danger/10' : 'border-line bg-black/20'}`}>
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] uppercase tracking-wider text-muted">Unusual behaviour</div>
+              {behaviour && (
+                <span className={`text-[11px] ${behaviour.live ? 'text-safe' : 'text-muted'}`}>{behaviour.live ? '● ML model live' : '○ cached'}</span>
+              )}
+            </div>
+            {behaviour ? (
+              <>
+                <div className={`mt-1 text-lg font-bold ${behaviour.unusual ? 'text-danger' : 'text-safe'}`}>
+                  {behaviour.unusual ? 'Unusual pattern this hour' : 'Normal'}
+                </div>
+                {behaviour.reasons?.length > 0 ? (
+                  <ul className="mt-1 space-y-0.5 text-xs text-slate-300">
+                    {behaviour.reasons.map((r, i) => <li key={i}>· {r}</li>)}
+                  </ul>
+                ) : behaviour.unusual && (
+                  <div className="mt-1 text-xs text-slate-300">Flagged by the anomaly model; no single rule matched</div>
+                )}
+              </>
+            ) : (
+              <div className="mt-1 text-sm text-muted">Scoring…</div>
+            )}
+          </div>
+
           <div className="rounded-xl border border-line bg-black/20 p-3 text-sm">
             <div className="mb-2 text-[11px] uppercase tracking-wider text-muted">Limits from site data</div>
             <div className="flex items-center justify-between"><span>E-floor (fibre at 1.2 m)</span><b className="text-orange-300">0.9 m</b></div>
             <div className="flex items-center justify-between"><span>E-ceiling (11 kV line)</span><b className="text-red-300">6.0 m</b></div>
             <div className="flex items-center justify-between"><span>Swing radius watch</span><b className={snap.zone === 'clear' ? 'text-safe' : snap.zone === 'caution' ? 'text-warn' : 'text-danger'}>{snap.zone}</b></div>
+          </div>
+
+          <div className="rounded-xl border border-line bg-black/20 p-3">
+            <div className="mb-2 text-[11px] uppercase tracking-wider text-muted">Official telemetry sample · EXC001 / OP1001</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[11px]">
+                <thead className="text-muted">
+                  <tr>
+                    <th className="pb-1 pr-2 font-normal">Time</th>
+                    <th className="pb-1 pr-2 font-normal">Fuel L</th>
+                    <th className="pb-1 pr-2 font-normal">Cycles</th>
+                    <th className="pb-1 pr-2 font-normal">Idle min</th>
+                    <th className="pb-1 pr-2 font-normal">Seatbelt</th>
+                    <th className="pb-1 font-normal">Flag</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hourly.map((row) => {
+                    const unusual = isRowUnusual(row)
+                    return (
+                      <tr key={row.time} className="border-t border-line/60">
+                        <td className="py-1 pr-2 text-slate-300">{row.time}</td>
+                        <td className="py-1 pr-2">{row.fuel.toFixed(1)}</td>
+                        <td className="py-1 pr-2">{row.cycles}</td>
+                        <td className="py-1 pr-2">{row.idle}</td>
+                        <td className={`py-1 pr-2 ${row.belt === 'Fastened' ? 'text-safe' : 'text-danger'}`}>{row.belt}</td>
+                        <td className={`py-1 font-semibold ${unusual ? 'text-danger' : 'text-safe'}`}>{unusual ? 'Unusual' : 'OK'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="min-h-0 flex-1 rounded-xl border border-line bg-black/20 p-3">
@@ -216,7 +324,10 @@ export default function DockedMode({ sim, onUndock }) {
 
       {report && (
         <Modal>
-          <div className="mb-2 flex items-center gap-2"><Mic size={18} className="text-cat" /><b>Near-miss report</b></div>
+          <div className="mb-2 flex items-center gap-2">
+            <Mic size={18} className="text-cat" /><b>Near-miss report</b>
+            <span className={`ml-auto text-[11px] ${report.live ? 'text-safe' : 'text-muted'}`}>{report.live ? '● LLM structured' : '○ rule-based'}</span>
+          </div>
           <div className="rounded-lg bg-black/30 p-2 text-sm italic text-slate-300">"{report.transcript}"</div>
           <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
             {Object.entries(report.structured).map(([k, v]) => (

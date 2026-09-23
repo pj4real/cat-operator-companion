@@ -26,6 +26,7 @@ export function createSim() {
     cycles: 0,
     events: [],
     idleSinceSec: 0,
+    seatbeltOffSec: 0, // real: accumulated while engine is on and belt is off
   }
 }
 

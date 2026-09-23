@@ -23,7 +23,7 @@ export default function DockTransition({ onDone }) {
   }, [step, onDone])
 
   return (
-    <div className="flex h-full items-center justify-center">
+    <div className="flex h-full items-center justify-center bg-ink text-slate-100">
       <div className="w-[520px] rounded-3xl border border-cat/40 bg-panel p-8 shadow-[0_0_80px_-20px_#ffcd11]" style={{ animation: 'slide-dock 1s ease' }}>
         <div className="mb-6 flex items-center gap-3">
           <div className="rounded-xl bg-cat p-2 text-black"><PlugZap size={26} /></div>

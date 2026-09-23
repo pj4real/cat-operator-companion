@@ -22,3 +22,4 @@ async function post(path, body) {
 export const predictTask = (input) => post('/predict/task', input)
 export const classifyIdle = (window) => post('/classify/idle', window)
 export const scoreBehaviour = (hour) => post('/score/behaviour', hour)
+export const structureIncident = (input) => post('/structure/incident', input)
