@@ -5,13 +5,28 @@ Run:  uvicorn api:app --reload --port 8000
 Docs: http://localhost:8000/docs
 """
 import json
+import os
 from pathlib import Path
+from typing import Literal
 
+import httpx
 import joblib
 import pandas as pd
-from fastapi import FastAPI
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from groq import Groq
 from pydantic import BaseModel
+
+load_dotenv(Path(__file__).parent / ".env")
+
+ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
+ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam", a premade voice
+
+# free tier: console.groq.com -- fast inference over open models, JSON mode
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 MODELS = Path(__file__).parent / "models"
 DATA = Path(__file__).parent / "data"
@@ -311,6 +326,118 @@ def fleet():
         "alerts": alerts,
         "alerts_pushed": sum(a["level"] == "high" for a in alerts),
         "official_rows": official,
+    }
+
+
+class SpeakRequest(BaseModel):
+    text: str
+    voice_id: str | None = None
+
+
+@app.post("/speak")
+def speak(req: SpeakRequest):
+    """Text-to-speech via ElevenLabs. The key stays server-side; the frontend
+    never sees it. Frontend falls back to the browser's own speech synthesis
+    when this 503s (no key configured) or errors."""
+    if not ELEVENLABS_API_KEY:
+        raise HTTPException(503, "ELEVENLABS_API_KEY not set on the server")
+    voice_id = req.voice_id or ELEVENLABS_VOICE_ID
+    r = httpx.post(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+        headers={"xi-api-key": ELEVENLABS_API_KEY, "accept": "audio/mpeg", "content-type": "application/json"},
+        json={
+            "text": req.text,
+            "model_id": "eleven_multilingual_v2",
+            "voice_settings": {"stability": 0.45, "similarity_boost": 0.8},
+        },
+        timeout=30,
+    )
+    if r.status_code != 200:
+        raise HTTPException(502, f"ElevenLabs error: {r.text[:200]}")
+    return Response(content=r.content, media_type="audio/mpeg")
+
+
+class IncidentTranscript(BaseModel):
+    transcript: str
+    # context the frontend already computed -- the LLM must not guess any of this,
+    # only reason over it (the models decide, the LLM only explains)
+    machine_model: str
+    machine_id: str
+    operator_id: str
+    machine_state: str  # e.g. "Working (swinging)" or "Stationary"
+    min_dist_m: float  # real min operator-to-worker distance from the black box, last 60s
+    location: str = "Zone B, Bay 2 (auto from machine position)"
+
+
+class IncidentAssessment(BaseModel):
+    """The only three fields Claude is allowed to decide, matching what the
+    frontend's regex fallback currently guesses at."""
+    category: Literal["Vehicle interaction", "Person in swing zone", "Other"]
+    severity: Literal["Low", "Medium", "High"]
+    suggested_action: str
+
+
+@app.post("/structure/incident")
+def structure_incident(req: IncidentTranscript):
+    """Structures a voice-reported near-miss (Hindi/English/Hinglish transcript)
+    into the same report shape the frontend's regex fallback produces. The LLM
+    only fills in category/severity/suggested_action -- reasoning over the real
+    transcript and the real black-box distance passed in, never inventing a
+    fact of its own. type/location/machine/operator/machine_state are passed
+    straight through unchanged. Frontend falls back to its own rule-based
+    version when this 503s (no key configured) or 502s (the call failed or
+    returned something that doesn't match the expected shape)."""
+    if not GROQ_API_KEY:
+        raise HTTPException(503, "GROQ_API_KEY not set on the server")
+
+    client = Groq(api_key=GROQ_API_KEY)
+    system = (
+        "You are a mine-site safety reporting assistant. You are given the transcript of "
+        "an excavator operator's spoken near-miss report (it may be in Hindi, English, or "
+        "Hinglish) plus real sensor context: the machine's state and the minimum "
+        "operator-to-worker distance measured by the machine's black box over the last 60 "
+        "seconds. You must base severity on the REAL distance figure given to you -- never "
+        "invent, guess, or adjust that number. Read the transcript to classify the incident "
+        "category and to write one short, concrete suggested safety action for the site "
+        "safety officer.\n\n"
+        'Respond with ONLY a JSON object with exactly these keys: '
+        '"category" (one of "Vehicle interaction", "Person in swing zone", "Other"), '
+        '"severity" (one of "Low", "Medium", "High"), '
+        '"suggested_action" (a short, concrete string). No other text, no markdown fences.'
+    )
+    user = (
+        f'Transcript: "{req.transcript}"\n'
+        f"Machine: {req.machine_model} ({req.machine_id})\n"
+        f"Machine state at the time of the report: {req.machine_state}\n"
+        f"Minimum distance to a worker in the last 60s, from the black box: {req.min_dist_m:.1f} m\n\n"
+        "Classify this near-miss, assess its severity using the real distance above, and "
+        "suggest one concrete corrective action."
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            max_tokens=300,
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        )
+        assessment = IncidentAssessment.model_validate_json(response.choices[0].message.content)
+    except Exception as e:
+        # Broad on purpose: auth errors, rate limits, network failures, and schema
+        # validation should all just look like a 502 to the frontend, which has
+        # its own rule-based fallback and must never crash on this call failing.
+        raise HTTPException(502, f"Groq error: {str(e)[:200]}")
+
+    return {
+        "type": "Near-miss",
+        "category": assessment.category,
+        "severity": assessment.severity,
+        "location": req.location,
+        "machine": f"{req.machine_model} {req.machine_id}",
+        "operator": req.operator_id,
+        "machine_state": req.machine_state,
+        "suggested_action": assessment.suggested_action,
     }
 
 

@@ -22,6 +22,7 @@ async function call(path, body) {
 export const predictTask = (input) => call('/predict/task', input)
 export const classifyIdle = (window) => call('/classify/idle', window)
 export const scoreBehaviour = (hour) => call('/score/behaviour', hour)
+export const structureIncident = (input) => call('/structure/incident', input)
 export const predictHealth = (day) => call('/predict/health', day)
 export const forecastFuel = (plan) => call('/forecast/fuel', plan)
 export const getFleet = () => call('/fleet')
