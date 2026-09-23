@@ -19,6 +19,8 @@ from fastapi.responses import Response
 from groq import Groq
 from pydantic import BaseModel
 
+from twin import TwinNetwork
+
 load_dotenv(Path(__file__).parent / ".env")
 
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
@@ -35,6 +37,8 @@ idle_bundle = joblib.load(MODELS / "idle_reason.joblib")
 beh_bundle = joblib.load(MODELS / "behaviour.joblib")
 health_bundle = joblib.load(MODELS / "machine_health.joblib")
 fuel_bundle = joblib.load(MODELS / "fuel_rate.joblib")
+# per-operator baselines, rebuilt from history at startup (running stats, ~50 ms); updated live via /twin/update
+twins = TwinNetwork.from_csv(DATA / "operator_hours.csv")
 
 app = FastAPI(title="Cat Operator Companion API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -271,6 +275,67 @@ OFFICIAL_ROWS = [
 ]
 
 
+# ---------------------------------------------------------------- operator digital twin
+class TwinContext(BaseModel):
+    operator_id: str = "OP1001"
+    task_type: str = "Material Loading"
+    weather: str = "Sunny"
+    machine_id: str = "RENTAL-SAE"
+    hour_of_shift: int = 3
+
+
+class TwinHour(TwinContext):
+    idle_min: float = 20
+    load_cycles: float = 12
+    fuel_l: float = 5.0
+    seatbelt_off_min: float = 0
+    harsh_swings: float = 1
+
+
+def _twin_or_404(operator_id: str):
+    if operator_id not in twins.twins:
+        raise HTTPException(404, f"No twin for {operator_id}")
+
+
+@app.get("/twin/{operator_id}")
+def twin_profile(operator_id: str):
+    """The operator's own working pattern: axes vs site, what the twin has learned, usual per condition."""
+    _twin_or_404(operator_id)
+    evaluation = json.loads((MODELS / "metrics.json").read_text()).get("operator_twin")
+    return twins.profile(operator_id) | {"evaluation": evaluation}
+
+
+@app.post("/twin/score")
+def twin_score(h: TwinHour):
+    """Is this hour unusual for this operator, in these conditions? Plain reasons for every flag."""
+    _twin_or_404(h.operator_id)
+    d = h.model_dump()
+    return twins.score(h.operator_id, d, d)
+
+
+@app.post("/twin/update")
+def twin_update(h: TwinHour):
+    """Fold a finished hour into the twin (incremental, no retraining)."""
+    _twin_or_404(h.operator_id)
+    d = h.model_dump()
+    return twins.update(h.operator_id, d, d)
+
+
+def fuse_risk(hour: dict, twin: dict) -> dict:
+    """Safe / Caution / Critical from the machine's current hour + the operator's twin.
+    Same rules as the docked display (frontend/src/lib/risk.ts), minus live proximity."""
+    belt, idle, harsh = hour["seatbelt_off_min"], hour["idle_min"], hour["harsh_swings"]
+    if belt >= 20 and idle >= 40:
+        return {"level": "critical", "reason": f"Seatbelt off {belt:.0f} min during a {idle:.0f}-min idle: restart without a belt is likely"}
+    if belt > 5:
+        return {"level": "caution", "reason": f"Seatbelt off {belt:.0f} min this hour with the engine running"}
+    if harsh >= 5:
+        return {"level": "caution", "reason": f"{harsh:.0f} harsh swings this hour"}
+    if twin.get("unusual") and twin.get("reasons"):
+        return {"level": "caution", "reason": twin["reasons"][0]}
+    return {"level": "safe", "reason": "Working as usual for this operator"}
+
+
 @app.get("/fleet")
 def fleet():
     machines, alerts = [], []
@@ -279,6 +344,11 @@ def fleet():
         f = _fuel({"fuel_l": m["fuel_l"], "tank_l": m["tank_l"], "now": "13:30", "reserve_l": m["tank_l"] * 0.05,
                    "between_tasks_lph": 5.0, "tasks": m["tasks"]})
         b = score_behaviour(HourStats(**m["hour_stats"]))
+        op_id = m["operator"].split("(")[-1].rstrip(")")
+        ctx = {"task_type": m["tasks"][0]["task_type"] if m["tasks"] else "Hauling",
+               "weather": m["tasks"][0]["weather"] if m["tasks"] else "Sunny", "machine_id": m["id"], "hour_of_shift": 7}
+        tw = twins.score(op_id, ctx, m["hour_stats"]) if op_id in twins.twins else {"unusual": False, "reasons": []}
+        risk = fuse_risk(m["hour_stats"], tw)
         idle_total = sum(m["idle_min"].values())
         waste = m["idle_min"]["waste"]
         machines.append({k: m[k] for k in ("id", "make", "model", "kind", "operator", "zone", "x", "y", "hours",
@@ -286,7 +356,9 @@ def fleet():
                                            "seatbelt_violations", "faults")}
                         | {"idle_min": idle_total, "idle_waste_min": waste, "idle_by_reason": m["idle_min"],
                            "fuel_pct": round(m["fuel_l"] / m["tank_l"] * 100), "health": h, "fuel_plan": f,
-                           "behaviour": b})
+                           "behaviour": b, "twin": tw, "risk": risk})
+        if risk["level"] == "critical":
+            alerts.append({"level": "high", "machine": m["id"], "text": f"Critical: {risk['reason']}"})
         if h["level"] == "high":
             alerts.append({"level": "high", "machine": m["id"], "text": f"{h['risk_pct']}% failure risk in 50 h: {h['action']}"})
         elif h["level"] == "watch":
@@ -306,10 +378,14 @@ def fleet():
     idle_h = sum(m["idle_min"] for m in machines) / 60
     waste_h = sum(m["idle_waste_min"] for m in machines) / 60
     fuel_used = sum(m["working_h"] * 15 + m["idle_min"] / 60 * 3.8 for m in machines)
-    official = [{**r, **score_behaviour(HourStats(fuel_l=r["fuel_l"], load_cycles=r["load_cycles"], idle_min=r["idle_min"],
-                                                  seatbelt_off_min=30 if r["seatbelt"] == "Unfastened" else 0,
-                                                  harsh_swings=1, raised_bucket_travel=0))}
-                for r in OFFICIAL_ROWS]
+    official = []
+    for r in OFFICIAL_ROWS:
+        hour = dict(fuel_l=r["fuel_l"], load_cycles=r["load_cycles"], idle_min=r["idle_min"],
+                    seatbelt_off_min=30 if r["seatbelt"] == "Unfastened" else 0, harsh_swings=1)
+        # the sample has no task/weather columns, so the twin uses Ravi's baseline on EXC001
+        tw = twins.score("OP1001", {"task_type": "?", "weather": "?", "machine_id": "EXC001", "hour_of_shift": 3}, hour)
+        official.append({**r, **score_behaviour(HourStats(**hour, raised_bucket_travel=0)),
+                         "twin_unusual": tw["unusual"], "twin_reasons": tw["reasons"]})
     return {
         "site": "NH-48 widening, Sriperumbudur",
         "kpis": {

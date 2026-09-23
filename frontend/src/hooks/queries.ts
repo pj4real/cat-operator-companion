@@ -1,10 +1,11 @@
 // Server state. Every query resolves (never errors): when the ML API is down the
 // cached fallback is returned with live: false, so the UI shows "cached" instead of breaking.
 import { useQuery } from '@tanstack/react-query'
-import { forecastFuel, getApiHealth, getFleet, predictHealth, predictTask } from '@/lib/api'
+import { forecastFuel, getApiHealth, getFleet, getTwin, predictHealth, predictTask } from '@/lib/api'
 import { machine, tasks } from '@/data/demo'
 import cachedFleet from '@/data/fleet_fallback.json'
-import type { FleetData, FuelPlan, HealthResult, Task, TaskInput, TaskPrediction } from '@/types'
+import cachedTwin from '@/data/twin_fallback.json'
+import type { FleetData, FuelPlan, HealthResult, Task, TaskInput, TaskPrediction, TwinProfile } from '@/types'
 
 export function useTaskPrediction(task: Task, override: Partial<TaskInput>) {
   const whatIf = Object.keys(override).length > 0
@@ -40,6 +41,16 @@ export function useFleet() {
     queryKey: ['fleet'],
     queryFn: (): Promise<FleetData> => getFleet().catch(() => ({ ...(cachedFleet as FleetData), live: false })),
     placeholderData: { ...(cachedFleet as FleetData), live: false },
+  })
+}
+
+/** The operator's twin profile. Refetched after undock, when the shift is folded in. */
+export function useTwin(operatorId: string) {
+  return useQuery({
+    queryKey: ['twin', operatorId],
+    queryFn: (): Promise<TwinProfile> => getTwin(operatorId).catch(() => ({ ...(cachedTwin as TwinProfile), live: false })),
+    placeholderData: { ...(cachedTwin as TwinProfile), live: false },
+    staleTime: 0,
   })
 }
 

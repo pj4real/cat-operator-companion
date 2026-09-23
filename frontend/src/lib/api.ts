@@ -1,6 +1,6 @@
 // Calls the FastAPI ML server. If it is not running, callers use their fallback,
 // so the demo never breaks on stage.
-import type { BehaviourResult, FleetData, FuelPlan, HealthResult, TaskPrediction } from '@/types'
+import type { BehaviourResult, FleetData, FuelPlan, HealthResult, TaskPrediction, TwinProfile, TwinScore } from '@/types'
 
 export const API_BASE: string = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -31,3 +31,6 @@ export const predictHealth = (day: object) => call<HealthResult>('/predict/healt
 export const forecastFuel = (plan: object) => call<FuelPlan>('/forecast/fuel', plan)
 export const getFleet = () => call<FleetData>('/fleet')
 export const getApiHealth = () => call<{ ok: boolean }>('/health', undefined, 1500)
+export const getTwin = (operatorId: string) => call<TwinProfile>(`/twin/${operatorId}`)
+export const scoreTwin = (hour: object) => call<TwinScore>('/twin/score', hour)
+export const updateTwin = (hour: object) => call<{ twin_hours_before: number; twin_hours: number; updates_today: number }>('/twin/update', hour)

@@ -118,5 +118,41 @@ metrics["fuel_rate"] = {
 }
 joblib.dump({"model": fuel_model, "columns": list(X.columns)}, MODELS / "fuel_rate.joblib")
 
+# ---------------------------------------------------------------- 6. operator digital twin
+# Not a trained model: per-operator, per-condition running statistics (twin.py). Evaluated
+# the honest way: learn from days 0-44 (all hours, no labels), score days 45-59, and compare
+# with the same z-score test against the site-wide baseline ("one threshold for everyone").
+from twin import METRICS as TWIN_METRICS, BAD_DIR, MIN_STD, Stat, TwinNetwork  # noqa: E402
+
+ops = pd.read_csv(DATA / "operator_hours.csv")
+ops_train, ops_test = ops[ops["day"] < 45], ops[ops["day"] >= 45]
+net = TwinNetwork(ops_train)
+site = {m: Stat() for m in TWIN_METRICS}
+for m in TWIN_METRICS:
+    for v in ops_train[m]:
+        site[m].add(float(v))
+
+
+def site_flag(r):
+    zs = [(r[m] - site[m].mean) / max(site[m].std, MIN_STD[m]) * BAD_DIR[m] for m in TWIN_METRICS if BAD_DIR[m]]
+    return max(zs) >= 2.5 or sum(z >= 2.0 for z in zs) >= 2
+
+
+twin_flags, site_flags = [], []
+for r in ops_test.to_dict("records"):
+    twin_flags.append(net.score(r["operator_id"], r, r)["unusual"])
+    site_flags.append(site_flag(r))
+truth = ops_test["planted_anomaly"].to_numpy() == 1
+
+
+def pr(flags):
+    f = np.array(flags)
+    return {"precision": round(float((f & truth).sum() / max(f.sum(), 1)), 3),
+            "recall": round(float((f & truth).sum() / max(truth.sum(), 1)), 3), "flags": int(f.sum())}
+
+
+metrics["operator_twin"] = {"twin": pr(twin_flags), "site_threshold": pr(site_flags),
+                            "test_hours": int(len(ops_test)), "planted": int(truth.sum())}
+
 (MODELS / "metrics.json").write_text(json.dumps(metrics, indent=2))
 print(json.dumps(metrics, indent=2))

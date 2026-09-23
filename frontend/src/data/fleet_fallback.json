@@ -85,6 +85,45 @@
      "Idle 55 min with only 2 load cycles (usual 18 min)",
      "Seatbelt off for 30 min while engine running"
     ]
+   },
+   "twin": {
+    "operator_id": "OP1001",
+    "unusual": true,
+    "context": "grading in rainy weather",
+    "context_hours": 20,
+    "reasons": [
+     "Load cycles 2/h, your usual for grading in rainy weather is 11",
+     "Idle 55 min/h is 1.9\u00d7 your usual for grading in rainy weather (29)",
+     "Seatbelt off 30 min/h is 3.8\u00d7 your usual for grading in rainy weather (8)"
+    ],
+    "deviations": [
+     {
+      "metric": "load_cycles",
+      "z": 6.1,
+      "value": 2,
+      "usual": 11.2,
+      "reason": "Load cycles 2/h, your usual for grading in rainy weather is 11"
+     },
+     {
+      "metric": "idle_min",
+      "z": 3.3,
+      "value": 55,
+      "usual": 29.1,
+      "reason": "Idle 55 min/h is 1.9\u00d7 your usual for grading in rainy weather (29)"
+     },
+     {
+      "metric": "seatbelt_off_min",
+      "z": 2.4,
+      "value": 30,
+      "usual": 7.9,
+      "reason": "Seatbelt off 30 min/h is 3.8\u00d7 your usual for grading in rainy weather (8)"
+     }
+    ],
+    "twin_hours": 600
+   },
+   "risk": {
+    "level": "critical",
+    "reason": "Seatbelt off 30 min during a 55-min idle: restart without a belt is likely"
    }
   },
   {
@@ -143,6 +182,19 @@
     "unusual": false,
     "score": 0.36,
     "reasons": []
+   },
+   "twin": {
+    "operator_id": "OP1007",
+    "unusual": false,
+    "context": "earth excavation in sunny weather",
+    "context_hours": 80,
+    "reasons": [],
+    "deviations": [],
+    "twin_hours": 600
+   },
+   "risk": {
+    "level": "safe",
+    "reason": "Working as usual for this operator"
    }
   },
   {
@@ -190,7 +242,7 @@
     "reasons": [
      {
       "factor": "Hydraulic oil peak",
-      "value": "96 \u00c2\u00b0C",
+      "value": "96 \u00b0C",
       "usual": "79",
       "points": 74,
       "component": "Hydraulics",
@@ -232,6 +284,29 @@
      "7 harsh swings this hour (usual 1)",
      "Travelling with bucket raised"
     ]
+   },
+   "twin": {
+    "operator_id": "OP1012",
+    "unusual": true,
+    "context": "material loading in sunny weather",
+    "context_hours": 310,
+    "reasons": [
+     "Harsh swings 7/h is 6.1\u00d7 your usual for material loading in sunny weather (1)"
+    ],
+    "deviations": [
+     {
+      "metric": "harsh_swings",
+      "z": 5.4,
+      "value": 7,
+      "usual": 1.1,
+      "reason": "Harsh swings 7/h is 6.1\u00d7 your usual for material loading in sunny weather (1)"
+     }
+    ],
+    "twin_hours": 600
+   },
+   "risk": {
+    "level": "caution",
+    "reason": "7 harsh swings this hour"
    }
   },
   {
@@ -282,7 +357,7 @@
      },
      {
       "factor": "Coolant peak",
-      "value": "101 \u00c2\u00b0C",
+      "value": "101 \u00b0C",
       "usual": "88",
       "points": 7,
       "component": "Cooling system",
@@ -304,6 +379,19 @@
     "unusual": false,
     "score": 0.536,
     "reasons": []
+   },
+   "twin": {
+    "operator_id": "OP1021",
+    "unusual": false,
+    "context": "hauling in sunny weather",
+    "context_hours": 290,
+    "reasons": [],
+    "deviations": [],
+    "twin_hours": 600
+   },
+   "risk": {
+    "level": "safe",
+    "reason": "Working as usual for this operator"
    }
   },
   {
@@ -353,6 +441,19 @@
     "unusual": false,
     "score": 0.537,
     "reasons": []
+   },
+   "twin": {
+    "operator_id": "OP1024",
+    "unusual": false,
+    "context": "hauling in sunny weather",
+    "context_hours": 280,
+    "reasons": [],
+    "deviations": [],
+    "twin_hours": 600
+   },
+   "risk": {
+    "level": "safe",
+    "reason": "Working as usual for this operator"
    }
   },
   {
@@ -437,10 +538,54 @@
      "Idle 58 min with only 1 load cycles (usual 18 min)",
      "Seatbelt off for 41 min while engine running"
     ]
+   },
+   "twin": {
+    "operator_id": "OP1031",
+    "unusual": true,
+    "context": "trenching in sunny weather",
+    "context_hours": 170,
+    "reasons": [
+     "Seatbelt off 41 min/h is 14.3\u00d7 your usual for trenching in sunny weather (3)",
+     "Load cycles 1/h, your usual for trenching in sunny weather is 5",
+     "Idle 58 min/h is 1.7\u00d7 your usual for trenching in sunny weather (34)"
+    ],
+    "deviations": [
+     {
+      "metric": "seatbelt_off_min",
+      "z": 6.4,
+      "value": 41,
+      "usual": 2.9,
+      "reason": "Seatbelt off 41 min/h is 14.3\u00d7 your usual for trenching in sunny weather (3)"
+     },
+     {
+      "metric": "load_cycles",
+      "z": 2.7,
+      "value": 1,
+      "usual": 5.0,
+      "reason": "Load cycles 1/h, your usual for trenching in sunny weather is 5"
+     },
+     {
+      "metric": "idle_min",
+      "z": 2.4,
+      "value": 58,
+      "usual": 34.4,
+      "reason": "Idle 58 min/h is 1.7\u00d7 your usual for trenching in sunny weather (34)"
+     }
+    ],
+    "twin_hours": 600
+   },
+   "risk": {
+    "level": "critical",
+    "reason": "Seatbelt off 41 min during a 58-min idle: restart without a belt is likely"
    }
   }
  ],
  "alerts": [
+  {
+   "level": "high",
+   "machine": "EXC001",
+   "text": "Critical: Seatbelt off 30 min during a 55-min idle: restart without a belt is likely"
+  },
   {
    "level": "high",
    "machine": "EXC001",
@@ -465,6 +610,11 @@
    "level": "high",
    "machine": "DT-03",
    "text": "E0361-2 Coolant temperature high"
+  },
+  {
+   "level": "high",
+   "machine": "BHL-11",
+   "text": "Critical: Seatbelt off 41 min during a 58-min idle: restart without a belt is likely"
   },
   {
    "level": "high",
@@ -512,7 +662,7 @@
    "text": "E0171-1 Air filter restriction, early"
   }
  ],
- "alerts_pushed": 6,
+ "alerts_pushed": 8,
  "official_rows": [
   {
    "time": "2025-05-01 08:00",
@@ -523,7 +673,9 @@
    "alert": "No",
    "unusual": false,
    "score": 0.402,
-   "reasons": []
+   "reasons": [],
+   "twin_unusual": false,
+   "twin_reasons": []
   },
   {
    "time": "2025-05-01 10:00",
@@ -537,6 +689,12 @@
    "reasons": [
     "Idle 55 min with only 2 load cycles (usual 18 min)",
     "Seatbelt off for 30 min while engine running"
+   ],
+   "twin_unusual": true,
+   "twin_reasons": [
+    "Idle 55 min/h is 2.9\u00d7 your usual for machine EXC001 (19)",
+    "Seatbelt off 30 min/h is 15.6\u00d7 your usual for machine EXC001 (2)",
+    "Load cycles 2/h, your usual for machine EXC001 is 12"
    ]
   },
   {
@@ -548,7 +706,9 @@
    "alert": "No",
    "unusual": false,
    "score": 0.361,
-   "reasons": []
+   "reasons": [],
+   "twin_unusual": false,
+   "twin_reasons": []
   },
   {
    "time": "2025-05-02 09:00",
@@ -562,6 +722,12 @@
    "reasons": [
     "Idle 60 min with only 1 load cycles (usual 18 min)",
     "Seatbelt off for 30 min while engine running"
+   ],
+   "twin_unusual": true,
+   "twin_reasons": [
+    "Idle 60 min/h is 3.2\u00d7 your usual for machine EXC001 (19)",
+    "Load cycles 1/h, your usual for machine EXC001 is 12",
+    "Seatbelt off 30 min/h is 15.6\u00d7 your usual for machine EXC001 (2)"
    ]
   }
  ]

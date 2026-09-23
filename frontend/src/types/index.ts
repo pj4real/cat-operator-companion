@@ -63,6 +63,36 @@ export interface FuelPlan {
 
 export interface BehaviourResult { unusual: boolean; score?: number; reasons: string[]; live?: boolean }
 
+export type RiskLevel3 = 'safe' | 'caution' | 'critical'
+export interface RiskState { level: RiskLevel3; reason: string }
+
+/** Operator digital twin: the operator's own baseline, per working condition (ml/twin.py). */
+export interface TwinScore {
+  operator_id: string
+  unusual: boolean
+  context: string
+  context_hours: number
+  reasons: string[]
+  deviations: { metric: string; z: number; value: number; usual: number; reason: string }[]
+  twin_hours: number
+  live?: boolean
+}
+export interface TwinAxis { axis: string; metric: string; you: number; site: number; unit: string; delta_pct: number; good: boolean; compare: string }
+export interface TwinProfile {
+  operator_id: string
+  name: string
+  machine_kind: string
+  hours: number
+  contexts: number
+  updates_today: number
+  axes: TwinAxis[]
+  insights: { kind: 'watch' | 'strength'; text: string; detail: string }[]
+  by_context: { task_type: string; weather: string; hours: number; idle_min: number; load_cycles: number }[]
+  /** held-out test from ml/train.py: twin vs one site-wide threshold */
+  evaluation?: { twin: { precision: number; recall: number }; site_threshold: { precision: number; recall: number }; test_hours: number; planted: number }
+  live?: boolean
+}
+
 export interface SimEvent { id: number; time: string; level: EventLevel; text: string }
 
 export interface ShiftSummary {
@@ -103,6 +133,8 @@ export interface FleetMachine {
   health: HealthResult
   fuel_plan: FuelPlan
   behaviour: BehaviourResult
+  twin: TwinScore | { unusual: boolean; reasons: string[] }
+  risk: RiskState
 }
 
 export interface FleetAlert { machine: string; level: 'high' | 'medium' | 'low'; text: string }
@@ -116,6 +148,8 @@ export interface OfficialRow {
   alert: string
   unusual: boolean
   reasons: string[]
+  twin_unusual: boolean
+  twin_reasons: string[]
 }
 
 export interface FleetData {
