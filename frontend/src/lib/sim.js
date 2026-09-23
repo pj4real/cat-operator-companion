@@ -23,6 +23,7 @@ export function createSim() {
     working: false,
     idleSec: 0, // site seconds
     idleFuelL: 0,
+    idleWasteSec: 0, // site seconds of idle with the next truck > 3 min away
     cycles: 0,
     events: [],
     idleSinceSec: 0,

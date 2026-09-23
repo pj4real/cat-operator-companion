@@ -2,11 +2,11 @@
 // so the demo never breaks on stage.
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-async function post(path, body) {
+async function call(path, body) {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 2500)
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${BASE}${path}`, body === undefined ? { signal: ctrl.signal } : {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
@@ -19,7 +19,10 @@ async function post(path, body) {
   }
 }
 
-export const predictTask = (input) => post('/predict/task', input)
-export const classifyIdle = (window) => post('/classify/idle', window)
-export const scoreBehaviour = (hour) => post('/score/behaviour', hour)
-export const structureIncident = (input) => post('/structure/incident', input)
+export const predictTask = (input) => call('/predict/task', input)
+export const classifyIdle = (window) => call('/classify/idle', window)
+export const scoreBehaviour = (hour) => call('/score/behaviour', hour)
+export const structureIncident = (input) => call('/structure/incident', input)
+export const predictHealth = (day) => call('/predict/health', day)
+export const forecastFuel = (plan) => call('/forecast/fuel', plan)
+export const getFleet = () => call('/fleet')

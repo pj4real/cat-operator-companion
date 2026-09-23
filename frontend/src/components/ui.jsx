@@ -38,3 +38,19 @@ export function Stat({ icon: Icon, label, value, sub, tone }) {
     </div>
   )
 }
+
+// Names the problem statement's expected outcome a block covers. Inherits text colour,
+// so it reads on both the light handheld and the dark docked display.
+export function OutcomeTag({ children }) {
+  return (
+    <span className="whitespace-nowrap rounded-full bg-cat/25 px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal">
+      {children}
+    </span>
+  )
+}
+
+export function LiveBadge({ live }) {
+  return <span className={`text-[10px] ${live ? 'text-good' : 'text-ink3'}`}>{live ? '● ML model live' : '○ cached estimate'}</span>
+}
+
+export const RISK_TONE = { high: 'bg-critical/12 text-critical', watch: 'bg-warning/25 text-ink1', low: 'bg-good/12 text-good' }

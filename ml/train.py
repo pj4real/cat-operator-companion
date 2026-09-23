@@ -1,9 +1,11 @@
 """
-Trains the three models. Kept deliberately simple so every choice is explainable.
+Trains the five models. Kept deliberately simple so every choice is explainable.
 
 1. Task time range   : Gradient boosting with quantile loss -> P10 / P50 / P90
 2. Idle reason       : Random forest classifier -> warm_up / cool_down / waiting / heat_rest / waste
 3. Unusual behaviour : Isolation forest on hourly telemetry + readable rules
+4. Machine health    : Gradient boosting classifier -> risk of a failure in the next 50 engine hours
+5. Fuel burn rate    : Gradient boosting regressor -> L/h for a task, used for the run-out forecast
 
 Run:  python train.py      (after generate_data.py)
 Out:  models/*.joblib, models/metrics.json
@@ -14,8 +16,9 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import GradientBoostingRegressor, IsolationForest, RandomForestClassifier
-from sklearn.metrics import accuracy_score, mean_absolute_error
+from sklearn.ensemble import (GradientBoostingClassifier, GradientBoostingRegressor, IsolationForest,
+                              RandomForestClassifier)
+from sklearn.metrics import accuracy_score, mean_absolute_error, roc_auc_score
 from sklearn.model_selection import train_test_split
 
 HERE = Path(__file__).parent
@@ -85,6 +88,35 @@ metrics["unusual_behaviour"] = {
 joblib.dump({"model": iso, "features": BEH_FEATURES,
              "baseline": hours.loc[~planted, BEH_FEATURES].mean().round(2).to_dict()},
             MODELS / "behaviour.joblib")
+
+# ---------------------------------------------------------------- 4. machine health risk
+days = pd.read_csv(DATA / "machine_days.csv")
+HEALTH_FEATURES = [c for c in days.columns if c != "fails_within_50h"]
+Xh_tr, Xh_te, yh_tr, yh_te = train_test_split(days[HEALTH_FEATURES], days["fails_within_50h"],
+                                              test_size=0.2, random_state=0, stratify=days["fails_within_50h"])
+health_model = GradientBoostingClassifier(n_estimators=200, max_depth=3, learning_rate=0.05, random_state=0)
+health_model.fit(Xh_tr, yh_tr)
+risk = health_model.predict_proba(Xh_te)[:, 1]
+top = risk >= np.quantile(risk, 0.9)
+metrics["machine_health"] = {
+    "roc_auc": round(float(roc_auc_score(yh_te, risk)), 3),
+    "precision_top10pct": round(float(yh_te[top].mean()), 3),
+    "base_failure_rate": round(float(yh_te.mean()), 3),
+}
+joblib.dump({"model": health_model, "features": HEALTH_FEATURES}, MODELS / "machine_health.joblib")
+
+# ---------------------------------------------------------------- 5. fuel burn rate
+yf = tasks["fuel_lph"]
+Xf_tr, Xf_te, yf_tr, yf_te = train_test_split(X, yf, test_size=0.2, random_state=0)
+fuel_model = GradientBoostingRegressor(n_estimators=300, max_depth=3, learning_rate=0.05, random_state=0)
+fuel_model.fit(Xf_tr, yf_tr)
+flat_rate = float(yf_tr.mean())  # what a single "L/h for a Cat 320" rule of thumb would say
+metrics["fuel_rate"] = {
+    "model_mae_lph": round(mean_absolute_error(yf_te, fuel_model.predict(Xf_te)), 2),
+    "flat_rate_mae_lph": round(mean_absolute_error(yf_te, np.full(len(yf_te), flat_rate)), 2),
+    "flat_rate_lph": round(flat_rate, 2),
+}
+joblib.dump({"model": fuel_model, "columns": list(X.columns)}, MODELS / "fuel_rate.joblib")
 
 (MODELS / "metrics.json").write_text(json.dumps(metrics, indent=2))
 print(json.dumps(metrics, indent=2))

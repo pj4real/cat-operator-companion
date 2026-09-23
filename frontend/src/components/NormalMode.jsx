@@ -1,15 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
-import { Activity, BadgeCheck, Cable, CheckCircle2, Clock, Fuel, GraduationCap, PlayCircle, PlugZap, ShieldCheck, Sun, Users, Volume2, Zap } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Activity, BadgeCheck, Cable, CheckCircle2, ClipboardCheck, Clock, FlaskConical, Fuel, GraduationCap, HeartPulse, PlayCircle, PlugZap, ShieldCheck, Sun, Users, Volume2, Wrench, Zap } from 'lucide-react'
 import { operator, machine, tasks, briefing, lessons, weeklyStats } from '../data/demo'
-import { predictTask } from '../lib/api'
+import { predictTask, predictHealth, forecastFuel } from '../lib/api'
+import { DIESEL_INR } from '../lib/sim'
 import { speak, stopSpeaking } from '../lib/voice'
-import { Surface, SectionLabel, Stat } from './ui'
+import { Surface, SectionLabel, Stat, OutcomeTag, LiveBadge, RISK_TONE } from './ui'
 import SiteMap from './SiteMap'
 import { WeeklyHoursChart, IdleReasonDonut } from './DashboardCharts'
 import AssistantIntro from './AssistantIntro'
 
 const ICONS = { cable: Cable, zap: Zap, users: Users, sun: Sun }
 const INTRO_KEY = 'cc_intro_done'
+const WHAT_IF = {
+  weather: ['Sunny', 'Cloudy', 'Rainy', 'Windy'],
+  operator_skill: ['Beginner', 'Intermediate', 'Expert'],
+  soil: ['Sand', 'Loam', 'Clay', 'Rock'],
+}
 
 function RangeBar({ p10, p50, p90, planner }) {
   const max = Math.max(p90, planner) * 1.15
@@ -27,10 +33,20 @@ function RangeBar({ p10, p50, p90, planner }) {
 function TaskRow({ task }) {
   const [pred, setPred] = useState(null)
   const [speaking, setSpeaking] = useState(false)
+  const [override, setOverride] = useState({})
+  const [open, setOpen] = useState(false)
+  const whatIf = Object.keys(override).length > 0
   useEffect(() => {
-    predictTask(task.input).then(setPred).catch(() => setPred({ ...task.fallback, planner_estimate: task.input.planner_estimate_min, live: false }))
-  }, [task])
+    predictTask({ ...task.input, ...override })
+      .then(setPred)
+      .catch(() => setPred({ ...task.fallback, planner_estimate: task.input.planner_estimate_min, live: false, offline: whatIf }))
+  }, [task, override, whatIf])
   const p = pred || { ...task.fallback, planner_estimate: task.input.planner_estimate_min }
+  const setField = (k, v) => setOverride((o) => {
+    const next = { ...o, [k]: v }
+    if (v === task.input[k]) delete next[k]
+    return next
+  })
 
   const narrate = () => {
     if (speaking) { stopSpeaking(); setSpeaking(false); return }
@@ -42,7 +58,7 @@ function TaskRow({ task }) {
   }
 
   return (
-    <div className="border-b border-dline/70 py-3.5 last:border-0">
+    <div className={`border-b border-dline/70 py-3.5 last:border-0 ${whatIf ? 'rounded-xl bg-cat/[0.07] px-2' : ''}`}>
       <div className="flex items-baseline justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-ink1">{task.title}</div>
@@ -66,9 +82,110 @@ function TaskRow({ task }) {
             {r.minutes > 0 ? '+' : ''}{r.minutes} min · {r.factor}: {r.value}
           </span>
         ))}
-        <span className={`ml-auto text-[10px] ${pred?.live ? 'text-good' : 'text-ink3'}`}>{pred?.live ? '● ML model live' : '○ cached estimate'}</span>
+        <button onClick={() => setOpen(!open)} className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-ink3 ring-1 ring-black/10 hover:text-ink1">
+          <FlaskConical size={11} /> What if
+        </button>
+        <span className="ml-auto"><LiveBadge live={pred?.live} /></span>
       </div>
+      {open && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+          {Object.entries(WHAT_IF).map(([k, opts]) => (
+            <select key={k} value={override[k] ?? task.input[k]} onChange={(e) => setField(k, e.target.value)}
+              className="rounded-md bg-card px-1.5 py-1 text-ink1 ring-1 ring-black/10">
+              {opts.map((o) => <option key={o}>{o}</option>)}
+            </select>
+          ))}
+          {whatIf && <button onClick={() => setOverride({})} className="text-ink3 underline">reset</button>}
+          {pred?.offline && <span className="text-serious">What-if needs the ML API running</span>}
+        </div>
+      )}
     </div>
+  )
+}
+
+function FuelPlan() {
+  const [f, setF] = useState(null)
+  useEffect(() => {
+    forecastFuel({ fuel_l: machine.fuelL, tank_l: machine.tankL, now: '07:00', reserve_l: 15,
+      tasks: tasks.map((t) => ({ ...t.input, start: t.start, title: t.id })) })
+      .then(setF).catch(() => setF({ ...machine.fuelFallback, live: false }))
+  }, [])
+  const x = f || machine.fuelFallback
+  return (
+    <div className={`mt-2 flex items-center gap-3 rounded-xl p-3 text-sm ${x.runs_out_at ? 'bg-warning/15' : 'bg-black/[0.03]'}`}>
+      <Fuel size={18} className={x.runs_out_at ? 'text-serious' : 'text-good'} />
+      <div className="flex-1 text-ink2">
+        {x.runs_out_at
+          ? <>Fuel {machine.fuelL} L ({machine.fuelPct}%). Hits reserve around <b className="text-ink1">{x.runs_out_at}</b>. <b className="text-ink1">Refuel before {x.refuel_before}.</b></>
+          : <>Fuel is enough for today's tasks, {x.fuel_left_end_l} L left.</>}
+        <div className="text-[11px] text-ink3">{x.litres_planned} L planned today · ≈ {x.co2_kg} kg CO₂ · burn rate per task from the fuel model</div>
+      </div>
+      <LiveBadge live={f?.live} />
+    </div>
+  )
+}
+
+function HealthCard() {
+  const [h, setH] = useState(null)
+  useEffect(() => {
+    predictHealth(machine.healthDay).then(setH).catch(() => setH({ ...machine.healthFallback, live: false }))
+  }, [])
+  const x = h || machine.healthFallback
+  return (
+    <Surface className="p-4">
+      <SectionLabel icon={HeartPulse}>Machine health before you start · {machine.id}</SectionLabel>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-ink1">Failure risk, next 50 engine hours</div>
+        <span className={`rounded-full px-2 py-0.5 text-sm font-bold ${RISK_TONE[x.level]}`}>{x.risk_pct}% · {x.level}</span>
+      </div>
+      {x.reasons.map((r) => (
+        <div key={r.factor} className="mt-1 text-xs text-ink3">{r.factor} <b className="text-ink1">{r.value}</b> (usual {r.usual}) · +{r.points} pts</div>
+      ))}
+      <div className="mt-2 flex items-start gap-2 rounded-xl bg-black/[0.03] p-2.5 text-sm text-ink1">
+        <ClipboardCheck size={16} className="mt-0.5 shrink-0 text-ink2" />
+        <span>Walkaround, first item today: {x.action.toLowerCase()}</span>
+      </div>
+      <div className="mt-1.5 flex items-center justify-between text-[11px] text-ink3">
+        <span className="flex items-center gap-1"><Wrench size={11} /> Service due in {machine.serviceDueIn} h · from S·O·S oil sample + sensors</span>
+        <LiveBadge live={h?.live} />
+      </div>
+    </Surface>
+  )
+}
+
+function ShiftSummary({ today }) {
+  const justifiedMin = today.idleMin - today.wasteMin
+  return (
+    <Surface className="p-4">
+      <SectionLabel icon={Activity} action={<OutcomeTag>Identify unusual behaviour in machine usage</OutcomeTag>}>End of shift summary</SectionLabel>
+      <div className="grid grid-cols-3 gap-3 text-center">
+        <div><div className="text-2xl font-bold text-ink1">{(today.dockedMin / 60).toFixed(1)} h</div><div className="text-[11px] text-ink3">verified on EXC001</div></div>
+        <div><div className="text-2xl font-bold text-ink1">{today.cycles}</div><div className="text-[11px] text-ink3">load cycles</div></div>
+        <div><div className="text-2xl font-bold text-ink1">{today.events.length}</div><div className="text-[11px] text-ink3">safety events</div></div>
+      </div>
+      <div className="mt-3 text-[11px] uppercase tracking-wider text-ink3">Idle {today.idleMin.toFixed(0)} min · {today.idleFuelL.toFixed(1)} L · ₹{(today.idleFuelL * DIESEL_INR).toFixed(0)}</div>
+      <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-dline">
+        <div className="bg-s-blue" style={{ width: `${(justifiedMin / Math.max(today.idleMin, 1)) * 100}%` }} />
+        <div className="bg-critical" style={{ width: `${(today.wasteMin / Math.max(today.idleMin, 1)) * 100}%` }} />
+      </div>
+      <div className="mt-1 flex justify-between text-[11px]">
+        <span className="text-s-blue">{justifiedMin.toFixed(0)} min justified (truck close)</span>
+        <span className="text-critical">{today.wasteMin.toFixed(0)} min avoidable · ₹{(today.wasteFuelL * DIESEL_INR).toFixed(0)}</span>
+      </div>
+      {today.beltOffMin > 0 && <div className="mt-1 text-[11px] text-serious">Seatbelt off with engine running: {today.beltOffMin.toFixed(0)} min</div>}
+      {today.events.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {today.events.slice(0, 4).map((e) => <li key={e.id} className="text-xs text-ink2"><span className="text-ink3">{e.time}</span> {e.text}</li>)}
+        </ul>
+      )}
+      {today.lessons.length > 0 && (
+        <div className="mt-3 rounded-xl bg-black/[0.03] p-2.5">
+          <div className="text-[11px] uppercase tracking-wider text-ink3">New lessons from today</div>
+          {today.lessons.map((l) => <div key={l.title} className="text-sm text-ink1">{l.title} <span className="text-[11px] text-ink3">· {l.mins} min · {l.from}</span></div>)}
+        </div>
+      )}
+      <div className="mt-2 text-[11px] text-ink3">Skill passport: +{(today.dockedMin / 60).toFixed(1)} verified hours → {(operator.passport.hours + today.dockedMin / 60).toFixed(0)} h</div>
+    </Surface>
   )
 }
 
@@ -111,8 +228,10 @@ export default function NormalMode({ onDock, today }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.5fr_1fr]">
         <div className="flex flex-col gap-5">
+          {today && <ShiftSummary today={today} />}
+
           <Surface className="p-4">
-            <SectionLabel icon={PlayCircle}>Pre-shift briefing</SectionLabel>
+            <SectionLabel icon={PlayCircle} action={<OutcomeTag>Safety features (working conditions)</OutcomeTag>}>Pre-shift briefing</SectionLabel>
             <ul className="space-y-2.5">
               {briefing.map((b) => {
                 const I = ICONS[b.icon]
@@ -125,12 +244,13 @@ export default function NormalMode({ onDock, today }) {
           </Surface>
 
           <Surface className="p-4">
-            <SectionLabel icon={Activity}>Today's tasks · time range from past jobs, weather and skill</SectionLabel>
+            <SectionLabel icon={Activity} action={<OutcomeTag>Daily task dashboard · Task time estimation</OutcomeTag>}>Today's tasks · time range from past jobs, weather and skill</SectionLabel>
             <div>{tasks.map((t) => <TaskRow key={t.id} task={t} />)}</div>
+            <FuelPlan />
           </Surface>
 
           <Surface className="p-4">
-            <SectionLabel>Site map · zones, fibre route, 11 kV line</SectionLabel>
+            <SectionLabel action={<OutcomeTag>Proximity hazards</OutcomeTag>}>Site map · zones, fibre route, 11 kV line</SectionLabel>
             <SiteMap />
           </Surface>
         </div>
@@ -149,16 +269,7 @@ export default function NormalMode({ onDock, today }) {
             </div>
           </button>
 
-          {today && (
-            <Surface className="p-4">
-              <SectionLabel icon={Activity}>Today so far</SectionLabel>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div><div className="text-2xl font-bold text-ink1">{today.cycles}</div><div className="text-[11px] text-ink3">load cycles</div></div>
-                <div><div className="text-2xl font-bold text-ink1">{today.idleFuelL.toFixed(1)} L</div><div className="text-[11px] text-ink3">idle fuel</div></div>
-                <div><div className="text-2xl font-bold text-ink1">{today.events}</div><div className="text-[11px] text-ink3">safety events</div></div>
-              </div>
-            </Surface>
-          )}
+          <HealthCard />
 
           <Surface className="p-4">
             <SectionLabel icon={Clock}>Verified hours this week</SectionLabel>
@@ -167,12 +278,12 @@ export default function NormalMode({ onDock, today }) {
           </Surface>
 
           <Surface className="p-4">
-            <SectionLabel icon={Fuel}>Idle reasons this week</SectionLabel>
+            <SectionLabel icon={Fuel} action={<OutcomeTag>Excessive idling</OutcomeTag>}>Idle reasons this week</SectionLabel>
             <IdleReasonDonut />
           </Surface>
 
           <Surface className="p-4">
-            <SectionLabel icon={GraduationCap}>Lessons from your own shifts</SectionLabel>
+            <SectionLabel icon={GraduationCap} action={<OutcomeTag>Operator training hub</OutcomeTag>}>Lessons from your own shifts</SectionLabel>
             <ul className="space-y-2">
               {lessons.map((l) => (
                 <li key={l.title} className="flex items-center justify-between gap-2 rounded-xl bg-black/[0.03] p-2.5">
@@ -187,7 +298,7 @@ export default function NormalMode({ onDock, today }) {
           </Surface>
 
           <Surface className="p-4">
-            <SectionLabel icon={BadgeCheck}>Skill passport</SectionLabel>
+            <SectionLabel icon={BadgeCheck} action={<OutcomeTag>Operator training hub</OutcomeTag>}>Skill passport</SectionLabel>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div><div className="text-2xl font-bold text-ink1">{operator.passport.hours}</div><div className="text-[11px] text-ink3">verified hours</div></div>
               <div><div className="text-2xl font-bold text-ink1">{operator.passport.machines}</div><div className="text-[11px] text-ink3">machine types</div></div>
