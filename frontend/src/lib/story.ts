@@ -56,6 +56,11 @@ export const CHAPTERS: Chapter[] = [
     enter: (ctx) => { ctx.setBriefingOpen(false); ctx.navigate('operator', 'today') },
   },
   {
+    time: '06:58', title: 'Walkaround',
+    caption: 'His walkaround is ordered by prediction: the health model flagged dust in the oil, so the air filter comes first.',
+    enter: (ctx) => { ctx.setBriefingOpen(false); if (ctx.isDocked()) ctx.undock(); ctx.navigate('operator', 'walkaround') },
+  },
+  {
     time: '07:05', title: 'Dock to the machine',
     caption: 'He docks into a rental Cat 320. His profile, the site hazards and the machine data come together.',
     enter: (ctx) => { ctx.setBriefingOpen(false); if (!ctx.isDocked()) ctx.dock(false) },

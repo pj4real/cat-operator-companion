@@ -10,6 +10,8 @@ import { Meter, Skeleton } from '@/components/ui/controls'
 import { MachineThumb } from '@/components/ui/machine-thumb'
 import { ModelStatus, StatusBadge } from '@/components/ui/status'
 import { RISK } from '@/lib/constants'
+import { useWalkaround } from '@/hooks/walkaround'
+import { IssueNote } from './WalkaroundPage'
 
 function Spec({ label, value, tone }: { label: string; value: ReactNode; tone?: string }) {
   return (
@@ -23,6 +25,7 @@ function Spec({ label, value, tone }: { label: string; value: ReactNode; tone?: 
 /** The product's key action: this tablet becomes the machine display. */
 export function MachineCard() {
   const setDevice = useApp((s) => s.setDevice)
+  const signed = useApp((s) => s.walkaround.signedAt !== null)
   const mismatch = machine.pattern !== operator.usualPattern
   return (
     <Card className="overflow-hidden">
@@ -49,11 +52,54 @@ export function MachineCard() {
             Joystick pattern differs from yours. You'll be asked to switch when you dock.
           </p>
         )}
-        <Button variant="primary" size="lg" className="mt-4 w-full font-display text-lg tracking-wide uppercase" onClick={() => setDevice('docking')}>
-          <PlugZap size={20} strokeWidth={2.4} /> Dock to {machine.id}
+        <WalkaroundStep />
+        <Button variant={signed ? 'primary' : 'ghost'} size={signed ? 'lg' : 'md'}
+          className={cn('w-full', signed ? 'mt-4 font-display text-lg tracking-wide uppercase' : 'mt-2 text-fg-2')}
+          onClick={() => setDevice('docking')}>
+          <PlugZap size={signed ? 20 : 17} strokeWidth={signed ? 2.4 : 2} /> {signed ? `Dock to ${machine.id}` : `Dock anyway`}
         </Button>
       </CardBody>
     </Card>
+  )
+}
+
+/** Pre-start walkaround: the step before docking. Primary until it's signed, then a one-line record. */
+function WalkaroundStep() {
+  const navigate = useApp((s) => s.navigate)
+  const w = useWalkaround()
+  const open = () => navigate('operator', 'walkaround')
+  if (w.signedAt) {
+    return (
+      <div className="mt-4 rounded-md border border-border bg-surface-2 px-3 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <StatusBadge tone="good" icon={ClipboardCheck}>Walkaround signed {w.signedAt}</StatusBadge>
+          <button onClick={open} className="h-9 rounded-sm px-1 text-sm font-medium text-fg-2 underline-offset-2 hover:text-fg hover:underline">View</button>
+        </div>
+        <div className="mt-1.5 text-[13px] text-fg-2">
+          {w.total} of {w.total} checked · {w.issues.length} {w.issues.length === 1 ? 'issue' : 'issues'} reported
+          {w.issues.length > 0 && <span className="text-fg-3"> ({w.issues.map((c) => c.title.split(/[:&(]/)[0].trim()).join(', ')})</span>}
+        </div>
+        {w.issues.length > 0 && <IssueNote flaggedIssue={w.flaggedIssue} className="mt-2" />}
+      </div>
+    )
+  }
+  const flagged = w.checks.find((c) => c.id === w.flagged)
+  return (
+    <div className="mt-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="label-caps text-fg-3">Before you dock</span>
+        <span className="font-mono text-xs text-fg-3">{w.done > 0 ? `${w.done} of ${w.total} done` : `${w.total} checks${flagged ? ' · 1 flagged' : ''}`}</span>
+      </div>
+      <Button variant="primary" size="lg" className="mt-1.5 w-full font-display text-lg tracking-wide uppercase" onClick={open}>
+        <ClipboardCheck size={20} strokeWidth={2.4} /> {w.done > 0 ? 'Continue walkaround' : 'Start walkaround'}
+      </Button>
+      {flagged && (
+        <p className="mt-2 flex items-start gap-1.5 text-[13px] text-fg-2">
+          <HeartPulse size={14} className="mt-0.5 shrink-0 text-warning-text" aria-hidden />
+          <span><b className="font-semibold text-fg">{flagged.title}</b> first: flagged by the health model</span>
+        </p>
+      )}
+    </div>
   )
 }
 
