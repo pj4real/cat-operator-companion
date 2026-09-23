@@ -12,6 +12,7 @@ import { SafetyPage } from '@/components/operator/SafetyPage'
 import { TrainingPage } from '@/components/operator/TrainingPage'
 import { ActivityPage } from '@/components/operator/ActivityPage'
 import { TwinPage } from '@/components/operator/TwinPage'
+import { WalkaroundPage } from '@/components/operator/WalkaroundPage'
 import { FleetOverviewPage, TelemetryAuditPage } from '@/components/fleet/FleetPages'
 import { DockTransition } from '@/components/docked/DockTransition'
 import { DockedMode } from '@/components/docked/DockedMode'
@@ -51,6 +52,7 @@ const PAGES = {
   training: TrainingPage,
   activity: ActivityPage,
   twin: TwinPage,
+  walkaround: WalkaroundPage,
   overview: FleetOverviewPage,
   telemetry: TelemetryAuditPage,
 }
