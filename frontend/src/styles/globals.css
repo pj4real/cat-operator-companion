@@ -1,0 +1,207 @@
+@import "tailwindcss";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
+@import "@fontsource/barlow/700.css";
+@import "@fontsource/barlow-condensed/500.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+/*
+  Operator Companion design tokens. See frontend/DESIGN.md.
+  Semantic roles only: components never use raw hex. The same roles resolve to
+  the daylight handheld palette (:root) and the in-cab display palette (.dark).
+*/
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+  --bg: #f2f2ef;
+  --surface: #ffffff;
+  --surface-2: #f7f7f4;
+  --surface-3: #ecebe7;
+  --border: #e3e2dc;
+  --border-strong: #cdcbc3;
+  --fg: #121314;
+  --fg-2: #4b4a46;
+  --fg-3: #6e6c66;
+  --ring: #121314;
+
+  --brand: #ffcd11;
+  --brand-hover: #f2c200;
+  --brand-fg: #121314;
+  --brand-soft: #fff4c2;
+
+  /* status: fill for marks, text for words. Always paired with an icon + label. */
+  --good: #0ca30c;       --good-text: #0a6f0a;     --good-soft: #e5f5e5;
+  --warning: #fab219;    --warning-text: #8a5700;  --warning-soft: #fff3d6;
+  --serious: #ec835a;    --serious-text: #a8461c;  --serious-soft: #fdeae2;
+  --critical: #d03b3b;   --critical-text: #b02727; --critical-soft: #fbe6e6;
+  --info: #2a78d6;       --info-text: #1f5fae;     --info-soft: #e6f0fb;
+
+  /* categorical chart slots (validated order, light surface) */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s8: #e34948;
+
+  --shadow-1: 0 1px 2px rgb(18 19 20 / 0.05);
+  --shadow-2: 0 1px 2px rgb(18 19 20 / 0.04), 0 8px 24px -12px rgb(18 19 20 / 0.18);
+  --shadow-3: 0 24px 64px -16px rgb(18 19 20 / 0.35);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0b0c0e;
+  --surface: #141619;
+  --surface-2: #1b1e22;
+  --surface-3: #24282d;
+  --border: #272b31;
+  --border-strong: #3a3f47;
+  --fg: #f3f3f1;
+  --fg-2: #b8bbc1;
+  --fg-3: #8d939c;
+  --ring: #ffcd11;
+
+  --brand-soft: #3a3108;
+
+  --good: #22b322;       --good-text: #4fd44f;     --good-soft: #0f2a12;
+  --warning: #fab219;    --warning-text: #fbc34a;  --warning-soft: #33280b;
+  --serious: #ec835a;    --serious-text: #f39b77;  --serious-soft: #35200f;
+  --critical: #e04848;   --critical-text: #ff7a7a; --critical-soft: #3a1414;
+  --info: #3987e5;       --info-text: #7ab1f0;     --info-soft: #11233a;
+
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s8: #e66767;
+
+  --shadow-1: 0 1px 0 rgb(0 0 0 / 0.4);
+  --shadow-2: 0 1px 0 rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.7);
+  --shadow-3: 0 32px 80px -16px rgb(0 0 0 / 0.8);
+}
+
+@theme inline {
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-ring: var(--ring);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-good: var(--good);
+  --color-good-text: var(--good-text);
+  --color-good-soft: var(--good-soft);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-warning-soft: var(--warning-soft);
+  --color-serious: var(--serious);
+  --color-serious-text: var(--serious-text);
+  --color-serious-soft: var(--serious-soft);
+  --color-critical: var(--critical);
+  --color-critical-text: var(--critical-text);
+  --color-critical-soft: var(--critical-soft);
+  --color-info: var(--info);
+  --color-info-text: var(--info-text);
+  --color-info-soft: var(--info-soft);
+
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-s3: var(--s3);
+  --color-s4: var(--s4);
+  --color-s5: var(--s5);
+  --color-s8: var(--s8);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  --shadow-1: var(--shadow-1);
+  --shadow-2: var(--shadow-2);
+  --shadow-3: var(--shadow-3);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --animate-enter: enter 260ms var(--ease-out) both;
+  --animate-dialog-in: dialog-in 200ms var(--ease-out);
+  --animate-overlay-in: fade-in 200ms var(--ease-out);
+  --animate-pulse-ring: pulse-ring 1.6s var(--ease-out) infinite;
+}
+
+@layer base {
+  html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+  html, body, #root { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "tnum" 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: var(--radius-sm); }
+  ::selection { background: var(--brand); color: var(--brand-fg); }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+}
+
+@utility tabular { font-variant-numeric: tabular-nums; }
+@utility label-caps {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+/* safety-yellow hazard stripe, used once per screen at most (the dock action) */
+@utility hazard-stripe {
+  background-image: repeating-linear-gradient(-45deg, var(--fg) 0 8px, var(--brand) 8px 16px);
+}
+
+@keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes pulse-ring { 0% { transform: scale(0.9); opacity: 0.9; } 100% { transform: scale(1.5); opacity: 0; } }
+@keyframes bar-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Stagger only on first paint of a page; never blocks interaction. */
+.stagger > * { animation: var(--animate-enter); }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(n+5) { animation-delay: 160ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* sonner, themed to our tokens */
+[data-sonner-toaster] [data-sonner-toast] {
+  --normal-bg: var(--surface);
+  --normal-text: var(--fg);
+  --normal-border: var(--border);
+  font-family: var(--font-sans);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+}
