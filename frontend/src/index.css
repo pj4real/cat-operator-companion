@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
 @theme {
+  /* brand chrome only -- never used to encode chart data */
   --color-cat: #ffcd11;
+
+  /* docked mode (in-cab HUD): dark, high-contrast */
   --color-ink: #0b0d10;
   --color-panel: #14181d;
   --color-line: #262c33;
@@ -9,10 +12,38 @@
   --color-safe: #22c55e;
   --color-warn: #f59e0b;
   --color-danger: #ef4444;
+
+  /* handheld dashboard: light surfaces (VisionLink-style) */
+  --color-page: #f4f5f4;
+  --color-card: #ffffff;
+  --color-dline: #e1e0d9;
+  --color-dborder: #0000001a;
+  --color-ink1: #0b0b0b;
+  --color-ink2: #52514e;
+  --color-ink3: #898781;
+
+  /* status scale: fixed, reserved, always icon + label */
+  --color-good: #0ca30c;
+  --color-warning: #fab219;
+  --color-serious: #ec835a;
+  --color-critical: #d03b3b;
+
+  /* chart categorical series: fixed order, never cycled */
+  --color-s-blue: #2a78d6;
+  --color-s-orange: #eb6834;
+  --color-s-aqua: #1baf7a;
+  --color-s-yellow: #eda100;
+  --color-s-magenta: #e87ba4;
+  --color-s-green: #008300;
+  --color-s-violet: #4a3aa7;
+  --color-s-red: #e34948;
 }
 
 html, body, #root { height: 100%; margin: 0; }
-body { background: var(--color-ink); color: #e8ecf1; font-family: "Inter", system-ui, sans-serif; }
+body { background: var(--color-page); color: var(--color-ink1); font-family: "Inter", system-ui, sans-serif; }
 
 @keyframes pulse-ring { 0% { transform: scale(.9); opacity: .9 } 100% { transform: scale(1.4); opacity: 0 } }
 @keyframes slide-dock { 0% { transform: translateY(0) scale(1) } 60% { transform: translateY(40px) scale(.96) } 100% { transform: translateY(0) scale(1) } }
+@keyframes caption-in { 0% { opacity: 0; transform: translateY(6px) } 100% { opacity: 1; transform: translateY(0) } }
+@keyframes chip-in { 0% { opacity: 0; transform: translateY(4px) scale(.96) } 100% { opacity: 1; transform: translateY(0) scale(1) } }
+@keyframes reveal-in { 0% { opacity: 0; transform: translateY(10px) } 100% { opacity: 1; transform: translateY(0) } }
