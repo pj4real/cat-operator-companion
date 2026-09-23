@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { FlaskConical, RotateCcw, Square, Volume2 } from 'lucide-react'
+import { ChevronDown, FlaskConical, RotateCcw, Square, Volume2 } from 'lucide-react'
 import type { Skill, Soil, Task, TaskInput, Weather } from '@/types'
 import { useTaskPrediction } from '@/hooks/queries'
 import { speak, stopSpeaking } from '@/lib/voice'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/controls'
-import { ModelStatus, StatusBadge, type Tone } from '@/components/ui/status'
+import { ModelStatus, type Tone } from '@/components/ui/status'
 
 const WEATHER: Weather[] = ['Sunny', 'Cloudy', 'Rainy', 'Windy']
 const SKILL: Skill[] = ['Beginner', 'Intermediate', 'Expert']
@@ -33,6 +33,20 @@ function RangeBar({ p10, p50, p90, planner }: { p10: number; p50: number; p90: n
   )
 }
 
+/** One plain sentence per reason: what it is and what it costs, never a label on the operator. */
+function reasonText(r: { factor: string; value: string; minutes: number }) {
+  const m = `${Math.round(r.minutes)} min`
+  const v = r.value.toLowerCase()
+  switch (r.factor.toLowerCase()) {
+    case 'soil': return `${r.value} soil adds ${m}`
+    case 'weather': return `${{ rainy: 'Rain', windy: 'Wind', cloudy: 'Cloud cover', sunny: 'Sun' }[v] ?? r.value} adds ${m}`
+    case 'operator skill': return `Experience level adds ${m}`
+    case 'machine age': return `A ${r.value}-year-old machine adds ${m}`
+    case 'heat': return `Heat adds ${m}`
+    default: return `${r.factor} adds ${m}`
+  }
+}
+
 function planTone(p50: number, planner: number): Tone {
   const over = (p50 - planner) / planner
   if (over > 0.15) return 'serious'
@@ -44,6 +58,7 @@ export function TaskEstimate({ task }: { task: Task }) {
   const [override, setOverride] = useState<Partial<TaskInput>>({})
   const [open, setOpen] = useState(false)
   const [speaking, setSpeaking] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const whatIf = Object.keys(override).length > 0
   const { data: p, isFetching } = useTaskPrediction(task, override)
   if (!p) return null
@@ -64,69 +79,69 @@ export function TaskEstimate({ task }: { task: Task }) {
 
   const delta = p.p50 - p.planner_estimate
   const value = <K extends keyof TaskInput>(k: K) => (override[k] ?? task.input[k]) as TaskInput[K]
+  const top = p.reasons[0]
+  const tone = planTone(p.p50, p.planner_estimate)
 
   return (
-    <li className={cn('grid grid-cols-[56px_1fr] gap-x-4 border-t border-border py-4 first:border-t-0 sm:grid-cols-[64px_1fr_auto]',
-      whatIf && '-mx-3 rounded-md bg-brand-soft/60 px-3')}>
-      <div className="pt-0.5">
-        <div className="font-mono text-[15px] font-medium text-fg">{task.start}</div>
-        <div className="font-mono text-[11px] text-fg-3">{task.id}</div>
-      </div>
-
-      <div className="min-w-0">
-        <div className="text-[16px] leading-snug font-semibold text-fg">{task.title}</div>
-        <div className="mt-0.5 text-sm text-fg-3">
-          Zone {task.zone} · {task.input.task_type} · {task.input.volume_m3} m³{task.note ? ` · ${task.note}` : ''}
-        </div>
-        <RangeBar p10={p.p10} p50={p.p50} p90={p.p90} planner={p.planner_estimate} />
-
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {p.reasons.map((r) => (
-            <span key={r.factor} className="inline-flex h-7 items-center gap-1 rounded-sm bg-surface-3 px-2 text-[13px] text-fg-2">
-              <b className="font-mono font-medium text-fg">{r.minutes > 0 ? '+' : ''}{r.minutes} min</b> {r.factor.toLowerCase()}: {r.value}
-            </span>
-          ))}
-          {p.reasons.length === 0 && <span className="text-[13px] text-fg-3">No factor adds more than a minute.</span>}
-        </div>
-
-        {open && (
-          <div className="mt-3 rounded-md border border-border bg-surface p-3" style={{ animation: 'var(--animate-enter)' }}>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-fg">What if conditions change?</span>
-              {whatIf && (
-                <Button size="sm" variant="ghost" onClick={() => setOverride({})}><RotateCcw size={14} /> Reset</Button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-3">
-              <Segmented label="Weather" value={value('weather')} options={WEATHER} onChange={(v) => setField('weather', v)} />
-              <Segmented label="Skill" value={value('operator_skill')} options={SKILL} onChange={(v) => setField('operator_skill', v)} />
-              <Segmented label="Soil" value={value('soil')} options={SOIL} onChange={(v) => setField('soil', v)} />
-            </div>
-            {p.offline && <p className="mt-3 text-[13px] text-serious-text">What-if needs the ML API. Showing the cached baseline.</p>}
-          </div>
-        )}
-      </div>
-
-      <div className="col-span-2 mt-3 flex items-center justify-between gap-3 sm:col-span-1 sm:mt-0 sm:flex-col sm:items-end sm:justify-start">
-        <div className="text-right" aria-live="polite">
-          <div className={cn('font-display text-[34px] leading-none font-semibold text-fg transition-opacity', isFetching && 'opacity-50')}>
+    <li className={cn('border-t border-border first:border-t-0', whatIf && '-mx-3 rounded-md bg-brand-soft/60 px-3')}>
+      {/* collapsed: when, what, how long, and the one reason that matters */}
+      <button onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}
+        className="grid w-full grid-cols-[56px_1fr_auto_20px] items-center gap-x-4 py-4 text-left sm:grid-cols-[64px_1fr_auto_20px]">
+        <span className="font-mono text-[15px] font-medium text-fg">{task.start}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-[16px] leading-snug font-semibold text-fg">{task.title}</span>
+          <span className="mt-0.5 block truncate text-sm text-fg-3">
+            {top ? reasonText(top) : `Zone ${task.zone}`}
+            {task.note && <> · {task.note}</>}
+          </span>
+        </span>
+        <span className="text-right">
+          <span className={cn('block font-display text-[30px] leading-none font-semibold text-fg transition-opacity', isFetching && 'opacity-50')}>
             {p.p50}<span className="ml-1 text-base font-medium text-fg-3">min</span>
+          </span>
+          <span className={cn('mt-0.5 block font-mono text-[11.5px]', tone === 'good' ? 'text-good-text' : tone === 'serious' ? 'text-serious-text' : 'text-fg-3')}>
+            {delta > 0 ? `${delta} over plan` : delta < 0 ? `${-delta} under plan` : 'on plan'}
+          </span>
+        </span>
+        <ChevronDown size={18} className={cn('text-fg-3 transition-transform duration-200', expanded && 'rotate-180')} aria-hidden />
+      </button>
+
+      {expanded && (
+        <div className="pb-5 sm:pl-[80px]" style={{ animation: 'var(--animate-enter)' }}>
+          <div className="text-sm text-fg-2">Zone {task.zone} · {task.input.task_type} · {task.input.volume_m3} m³ · likely {p.p10}–{p.p90} min</div>
+          <RangeBar p10={p.p10} p50={p.p50} p90={p.p90} planner={p.planner_estimate} />
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {p.reasons.map((r) => (
+              <span key={r.factor} className="inline-flex h-7 items-center gap-1 rounded-sm bg-surface-3 px-2 text-[13px] text-fg-2">
+                <b className="font-mono font-medium text-fg">{r.minutes > 0 ? '+' : ''}{r.minutes} min</b> {r.factor.toLowerCase()}: {r.value}
+              </span>
+            ))}
           </div>
-          <div className="mt-1 font-mono text-[11.5px] text-fg-3">likely {p.p10}–{p.p90}</div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant={speaking ? 'primary' : 'secondary'} onClick={narrate}>
+              {speaking ? <Square size={14} /> : <Volume2 size={15} />} {speaking ? 'Stop' : 'Read aloud'}
+            </Button>
+            <Button size="sm" variant={open ? 'inverse' : 'secondary'} onClick={() => setOpen(!open)} aria-expanded={open}>
+              <FlaskConical size={14} /> What if
+            </Button>
+            <ModelStatus live={p.live} className="ml-auto" />
+          </div>
+          {open && (
+            <div className="mt-3 rounded-md border border-border bg-surface p-3" style={{ animation: 'var(--animate-enter)' }}>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-fg">What if conditions change?</span>
+                {whatIf && <Button size="sm" variant="ghost" onClick={() => setOverride({})}><RotateCcw size={14} /> Reset</Button>}
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-3">
+                <Segmented label="Weather" value={value('weather')} options={WEATHER} onChange={(v) => setField('weather', v)} />
+                <Segmented label="Skill" value={value('operator_skill')} options={SKILL} onChange={(v) => setField('operator_skill', v)} />
+                <Segmented label="Soil" value={value('soil')} options={SOIL} onChange={(v) => setField('soil', v)} />
+              </div>
+              {p.offline && <p className="mt-3 text-[13px] text-serious-text">What-if needs the ML API. Showing the cached baseline.</p>}
+            </div>
+          )}
         </div>
-        <StatusBadge tone={planTone(p.p50, p.planner_estimate)} size="sm" icon={null}>
-          {delta > 0 ? `+${delta}` : delta} min vs plan
-        </StatusBadge>
-        <div className="flex items-center gap-1">
-          <Button size="icon-sm" variant={speaking ? 'primary' : 'ghost'} onClick={narrate} aria-label={speaking ? 'Stop reading' : `Read ${task.id} aloud`}>
-            {speaking ? <Square size={14} /> : <Volume2 size={16} />}
-          </Button>
-          <Button size="sm" variant={open ? 'inverse' : 'secondary'} onClick={() => setOpen(!open)} aria-expanded={open}>
-            <FlaskConical size={14} /> What if
-          </Button>
-        </div>
-        <ModelStatus live={p.live} />
-      </div>
+      )}
     </li>
   )
 }

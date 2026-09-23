@@ -95,7 +95,7 @@ function toothRow(count, spread, y, z) {
 // Simple forms (seat, two consoles, joysticks, keypad, start button) so the help manual can
 // point at the real control while its video plays.
 const START_BUTTON = [0.66, 1.495, 1.1]
-const CAB_EYE = [0.2, 2.12, 0.5] // behind and above the seat, over the operator's right shoulder
+const CAB_EYE = [0.52, 2.2, 0.6] // inside the cab, high in the rear-left corner, looking down at the right console
 
 function CabInterior({ sim, parts }) {
   const button = parts.startButton

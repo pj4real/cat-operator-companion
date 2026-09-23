@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { ClipboardCheck, TriangleAlert, Fuel, HeartPulse, PlugZap, Wrench } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { ChevronDown, ClipboardCheck, TriangleAlert, Fuel, HeartPulse, PlugZap, Wrench } from 'lucide-react'
 import { machine, operator } from '@/data/demo'
 import { useFuelPlan, useHealth } from '@/hooks/queries'
 import { useApp } from '@/store/app'
@@ -27,13 +27,13 @@ export function MachineCard() {
   return (
     <Card className="overflow-hidden">
       <div className="relative overflow-hidden bg-fg px-5 pt-4 pb-4 text-bg">
-        <div className="relative z-10 max-w-[55%]">
+        <div className="relative z-10 max-w-[46%]">
           <div className="label-caps opacity-70">Your machine today</div>
           <div className="mt-1 font-display text-[30px] leading-none font-bold tracking-tight">{machine.model}</div>
-          <div className="mt-1.5 font-mono text-xs opacity-75">{machine.id}</div>
-          <div className="mt-0.5 text-xs opacity-75">{machine.owner}</div>
+          <div className="mt-1.5 font-mono text-xs opacity-75">{machine.id} · rental</div>
+          <div className="mt-0.5 text-xs leading-snug opacity-75">{machine.owner.replace(/^Rental · /, '')}</div>
         </div>
-        <MachineThumb kind="Excavator" plate={false} className="absolute -right-3 bottom-0 h-[118%] w-[62%]" />
+        <MachineThumb kind="Excavator" plate={false} className="absolute -right-4 bottom-0 h-[112%] w-[56%]" />
       </div>
       <div className="h-1.5 hazard-stripe" aria-hidden />
       <CardBody className="pt-4">
@@ -59,46 +59,49 @@ export function MachineCard() {
 
 export function HealthCard() {
   const { data: h, isPending } = useHealth()
+  const [why, setWhy] = useState(false)
   return (
     <Card>
-      <CardHeader icon={HeartPulse} title="Machine health" description={`Before you start · ${machine.id}`} outcomes={['Safety features']} />
+      <CardHeader icon={HeartPulse} title="Machine health" outcomes={['Safety features']} actions={h && <ModelStatus live={h.live} />} />
       <CardBody>
-        {isPending || !h ? <Skeleton className="h-40" /> : (
+        {isPending || !h ? <Skeleton className="h-28" /> : (
           <>
-            <div className="flex items-end justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="font-display text-[44px] leading-none font-semibold text-fg">{h.risk_pct}<span className="text-2xl text-fg-3">%</span></div>
-                <div className="mt-1 text-sm text-fg-3">Failure risk, next 50 engine hours</div>
+                <div className="font-display text-[40px] leading-none font-semibold text-fg">{h.risk_pct}<span className="text-2xl text-fg-3">%</span></div>
+                <div className="mt-1 text-sm text-fg-3">failure risk, next 50 h</div>
               </div>
               <StatusBadge tone={RISK[h.level].tone} size="lg">{RISK[h.level].label}</StatusBadge>
             </div>
-
-            {h.reasons.length > 0 && (
-              <ul className="mt-4 space-y-2.5">
-                {h.reasons.map((r) => (
-                  <li key={r.factor}>
-                    <div className="flex items-baseline justify-between gap-2 text-sm">
-                      <span className="text-fg-2">{r.factor} <b className="font-mono font-medium text-fg">{r.value}</b> <span className="text-fg-3">· usual {r.usual}</span></span>
-                      <span className="font-mono text-[13px] font-medium text-serious-text">+{r.points} pts</span>
-                    </div>
-                    <Meter value={r.points} max={Math.max(h.risk_pct, 1)} label={`${r.factor} adds ${r.points} points`} className="mt-1.5 h-1.5" barClassName="bg-serious" />
-                  </li>
-                ))}
-              </ul>
-            )}
-
             <div className="mt-4 flex items-start gap-3 rounded-md border border-border bg-surface-2 p-3">
               <ClipboardCheck size={18} className="mt-0.5 shrink-0 text-fg-2" aria-hidden />
               <div className="text-sm">
-                <div className="label-caps text-fg-3">Walkaround · first item</div>
+                <div className="label-caps text-fg-3">Check first on your walkaround</div>
                 <div className="mt-0.5 font-medium text-fg">{h.action}</div>
               </div>
             </div>
-
-            <div className="mt-3 flex items-center justify-between gap-2 text-[13px] text-fg-3">
-              <span className="flex items-center gap-1.5"><Wrench size={13} aria-hidden /> From S·O·S oil sample + sensors</span>
-              <ModelStatus live={h.live} />
-            </div>
+            {h.reasons.length > 0 && (
+              <>
+                <button onClick={() => setWhy((v) => !v)} aria-expanded={why}
+                  className="mt-3 flex h-9 items-center gap-1 text-sm font-medium text-fg-2 hover:text-fg">
+                  Why? <ChevronDown size={15} className={cn('transition-transform duration-200', why && 'rotate-180')} />
+                </button>
+                {why && (
+                  <ul className="mt-1 space-y-2.5" style={{ animation: 'var(--animate-enter)' }}>
+                    {h.reasons.map((r) => (
+                      <li key={r.factor}>
+                        <div className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="text-fg-2">{r.factor} <b className="font-mono font-medium text-fg">{r.value}</b> <span className="text-fg-3">· usual {r.usual}</span></span>
+                          <span className="font-mono text-[13px] font-medium text-serious-text">+{r.points} pts</span>
+                        </div>
+                        <Meter value={r.points} max={Math.max(h.risk_pct, 1)} label={`${r.factor} adds ${r.points} points`} className="mt-1.5 h-1.5" barClassName="bg-serious" />
+                      </li>
+                    ))}
+                    <li className="flex items-center gap-1.5 text-[13px] text-fg-3"><Wrench size={13} aria-hidden /> From the S·O·S oil sample and sensors</li>
+                  </ul>
+                )}
+              </>
+            )}
           </>
         )}
       </CardBody>
@@ -110,26 +113,21 @@ export function HealthCard() {
 export function FuelPlanStrip() {
   const { data: f } = useFuelPlan()
   const x = f ?? machine.fuelFallback
-  const reservePct = (15 / machine.tankL) * 100
   return (
-    <div className={cn('mt-2 grid gap-4 rounded-md border p-4 sm:grid-cols-[1fr_auto]', x.runs_out_at ? 'border-serious/40 bg-serious-soft' : 'border-border bg-surface-2')}>
-      <div className="flex min-w-0 gap-3">
-        <Fuel size={20} className={cn('mt-0.5 shrink-0', x.runs_out_at ? 'text-serious-text' : 'text-good-text')} aria-hidden />
-        <div className="min-w-0 flex-1">
-          <div className="text-[15px] font-semibold text-fg">
-            {x.runs_out_at ? <>Hits reserve around {x.runs_out_at}. Refuel before {x.refuel_before}.</> : <>Enough fuel for today, {x.fuel_left_end_l} L left at shift end.</>}
-          </div>
-          <div className="mt-0.5 text-[13px] text-fg-2">{x.litres_planned} L planned today · ≈ {x.co2_kg} kg CO₂ · burn rate per task from the fuel model</div>
-          <div className="relative mt-3 max-w-md">
-            <Meter value={machine.fuelPct} label={`Fuel ${machine.fuelPct} percent`} barClassName={x.runs_out_at ? 'bg-serious' : 'bg-good'} />
-            <div className="absolute -top-1 h-4 w-px bg-fg" style={{ left: `${reservePct}%` }} aria-hidden />
-            <div className="mt-1 flex justify-between font-mono text-[11px] text-fg-3">
-              <span>reserve 15 L</span><span>{machine.fuelL} / {machine.tankL} L</span>
-            </div>
-          </div>
+    <div className={cn('mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border px-4 py-3', x.runs_out_at ? 'border-serious/40 bg-serious-soft' : 'border-border bg-surface-2')}>
+      <Fuel size={19} className={cn('shrink-0', x.runs_out_at ? 'text-serious-text' : 'text-good-text')} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="text-[15px] font-semibold text-fg">
+          {x.runs_out_at ? `Refuel before ${x.refuel_before}` : 'Enough fuel for today'}
+        </div>
+        <div className="text-[13px] text-fg-2">
+          {x.runs_out_at ? `Tank reaches reserve around ${x.runs_out_at} · ${x.litres_planned} L planned today` : `${x.fuel_left_end_l} L left at shift end`}
         </div>
       </div>
-      <div className="flex items-end sm:flex-col sm:justify-between"><ModelStatus live={f?.live} /></div>
+      <div className="w-32">
+        <Meter value={machine.fuelPct} label={`Fuel ${machine.fuelPct} percent`} barClassName={x.runs_out_at ? 'bg-serious' : 'bg-good'} />
+        <div className="mt-1 text-right font-mono text-[11px] text-fg-3">{machine.fuelL} L · {machine.fuelPct}%</div>
+      </div>
     </div>
   )
 }
