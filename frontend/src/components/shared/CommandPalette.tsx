@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Command } from 'cmdk'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { ArrowRightLeft, Moon, PlugZap, Volume2 } from 'lucide-react'
+import { ArrowRightLeft, Clapperboard, Moon, PlugZap, Volume2 } from 'lucide-react'
 import { useApp, type Workspace } from '@/store/app'
 import { useFleet } from '@/hooks/queries'
 import { machine } from '@/data/demo'
@@ -16,7 +16,7 @@ const GROUP = '[&_[cmdk-group-heading]]:label-caps [&_[cmdk-group-heading]]:px-3
  * open/close animation: it should feel instant.
  */
 export function CommandPalette() {
-  const { paletteOpen, setPaletteOpen, navigate, setDevice, toggleTheme, workspace, selectMachine, setBriefingOpen } = useApp()
+  const { paletteOpen, setPaletteOpen, navigate, setDevice, toggleTheme, workspace, selectMachine, setBriefingOpen, setStory } = useApp()
   const { data: fleet } = useFleet()
 
   useEffect(() => {
@@ -61,6 +61,9 @@ export function CommandPalette() {
               <Command.Group heading="Actions" className={GROUP}>
                 <Command.Item value="dock machine display" onSelect={run(() => { navigate('operator'); setDevice('docking') })} className={ITEM}>
                   <PlugZap size={17} className="text-fg-3" aria-hidden /> Dock to {machine.model} · {machine.id}
+                </Command.Item>
+                <Command.Item value="story mode presenter ravi day chapters" onSelect={run(() => setStory(true))} className={ITEM}>
+                  <Clapperboard size={17} className="text-fg-3" aria-hidden /> Story mode: Ravi's day <span className="ml-auto font-mono text-xs text-fg-3">S</span>
                 </Command.Item>
                 <Command.Item value="replay voice briefing" onSelect={run(() => setBriefingOpen(true))} className={ITEM}>
                   <Volume2 size={17} className="text-fg-3" aria-hidden /> Replay voice briefing

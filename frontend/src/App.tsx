@@ -15,6 +15,8 @@ import { TwinPage } from '@/components/operator/TwinPage'
 import { FleetOverviewPage, TelemetryAuditPage } from '@/components/fleet/FleetPages'
 import { DockTransition } from '@/components/docked/DockTransition'
 import { DockedMode } from '@/components/docked/DockedMode'
+import { StoryBar } from '@/components/shared/StoryBar'
+import type { StoryContext } from '@/lib/story'
 
 // The voice briefing's three.js orb loads on demand. The docked display is imported normally:
 // its 3D labels (drei <Html>) run their own React roots and break when mounted under a Suspense boundary.
@@ -97,10 +99,30 @@ export default function App() {
       .catch(() => { /* offline: the shift is kept on the tablet and synced later */ })
   }
 
-  if (device === 'docking') return <DockTransition onDone={dockDone} />
-  if (device === 'docked') return <DockedMode sim={sim.current} onUndock={undock} />
-  if (briefingOpen && page === 'today') return <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={() => setBriefingOpen(false)} /></Suspense>
+  const story: StoryContext = {
+    sim: sim.current,
+    navigate,
+    setBriefingOpen,
+    dock: (instant) => {
+      if (!instant) { setDevice('docking'); return }
+      logEvent(sim.current, 'ok', 'Docked to EXC001. Limits from site data accepted.')
+      setDevice('docked')
+    },
+    undock,
+    isDocked: () => useApp.getState().device !== 'handheld',
+  }
+  const finishBriefing = () => {
+    setBriefingOpen(false)
+    const st = useApp.getState()
+    if (st.storyOn && st.storyIndex === 0) st.setStory(true, 1)
+  }
 
   const Page = PAGES[page]
-  return <AppShell><Page /></AppShell>
+  const intro = briefingOpen && page === 'today' && device === 'handheld'
+  const screen =
+    device === 'docking' ? <DockTransition onDone={dockDone} />
+      : device === 'docked' ? <DockedMode sim={sim.current} onUndock={undock} />
+        : intro ? <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={finishBriefing} /></Suspense>
+          : <AppShell><Page /></AppShell>
+  return <>{screen}<StoryBar ctx={story} hidden={intro} /></>
 }

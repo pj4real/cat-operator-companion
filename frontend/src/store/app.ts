@@ -36,6 +36,12 @@ interface AppState {
   paletteOpen: boolean
   selectedMachine: string
   today: ShiftSummary | null
+  /** story mode: presenter chapter bar for Ravi's day */
+  storyOn: boolean
+  storyIndex: number
+  captionsOn: boolean
+  setStory: (on: boolean, index?: number) => void
+  toggleCaptions: () => void
   /** the spoken pre-shift briefing is showing */
   briefingOpen: boolean
   setBriefingOpen: (open: boolean) => void
@@ -57,6 +63,11 @@ export const useApp = create<AppState>((set) => ({
   paletteOpen: false,
   selectedMachine: 'EXC001',
   today: null,
+  storyOn: new URLSearchParams(window.location.search).has('story'),
+  storyIndex: 0,
+  captionsOn: true,
+  setStory: (storyOn, index) => set((s) => ({ storyOn, storyIndex: index ?? s.storyIndex })),
+  toggleCaptions: () => set((s) => ({ captionsOn: !s.captionsOn })),
   briefingOpen: readIntro(),
   setBriefingOpen: (briefingOpen) => {
     try { if (briefingOpen) sessionStorage.removeItem(INTRO_KEY); else sessionStorage.setItem(INTRO_KEY, '1') } catch { /* ignore */ }

@@ -7,7 +7,9 @@ import {
 } from 'lucide-react'
 import SiteScene from './SiteScene'
 import { HelpPanel } from './HelpPanel'
-import type { HelpItem } from '@/data/help'
+import { HELP, type HelpItem } from '@/data/help'
+import { useApp } from '@/store/app'
+import type { StoryCommand } from '@/lib/story'
 import { hourly, machine, operator } from '@/data/demo'
 import { classifyIdle, scoreBehaviour, scoreTwin, structureIncident } from '@/lib/api'
 import { fuseRisk, latchRisk, type RiskLatch } from '@/lib/risk'
@@ -287,6 +289,20 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
     setTimeout(() => finish(fallback), 8000)
   }, [listening, sim])
 
+  // story mode drives the cab: close the first-run dialog, start the voice report, open a help guide
+  const storyOn = useApp((st) => st.storyOn)
+  useEffect(() => {
+    const onStory = (e: Event) => {
+      const cmd = (e as CustomEvent<StoryCommand>).detail
+      if (cmd === 'close-pattern') { setPatternOpen((open) => { if (open) { sim.patternFixed = true; logEvent(sim, 'ok', 'Joystick pattern switched to ISO') } return false }) }
+      else if (cmd === 'voice') startVoice()
+      else if (cmd === 'help-keyless') { setHelpOpen(true); const item = HELP.find((h) => h.id === 'keyless-start') ?? null; setHelpItem(item); sim.focus = item?.focus ?? null }
+      else if (cmd === 'reset') { setHelpOpen(false); setHelpItem(null); setReport(null); sim.focus = null }
+    }
+    window.addEventListener('story', onStory)
+    return () => window.removeEventListener('story', onStory)
+  }, [sim, startVoice])
+
   // presenter hotkeys (keyboard-initiated, so nothing here animates)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -369,7 +385,7 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
           )}
 
           <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-2">
-            {showScenarios ? (
+            {storyOn ? null : showScenarios ? (
               <>
                 <span className="label-caps rounded-sm bg-black/60 px-2 py-1 text-[10px] text-white/70">Demo scenarios</span>
                 <ScenarioButton icon={UserRound} hotkey="W" onClick={toggleWorker} active={snap.workerIntrude}>{snap.workerIntrude ? 'Worker leaves' : 'New worker walks in'}</ScenarioButton>
