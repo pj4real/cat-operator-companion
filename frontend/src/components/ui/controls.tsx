@@ -2,6 +2,7 @@ import type { HTMLAttributes, ReactNode } from 'react'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usePortalContainer } from '@/lib/portal'
 
 /** Single-choice control. Fewer taps than a dropdown and readable at arm's length. */
 export function Segmented<T extends string>({ label, value, options, onChange, size = 'md' }: {
@@ -41,10 +42,11 @@ export function Kbd({ children, className }: { children: ReactNode; className?: 
 }
 
 export function Tooltip({ content, children, side = 'top' }: { content: ReactNode; children: ReactNode; side?: 'top' | 'right' | 'bottom' | 'left' }) {
+  const portal = usePortalContainer()
   return (
     <TooltipPrimitive.Root>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-      <TooltipPrimitive.Portal>
+      <TooltipPrimitive.Portal container={portal}>
         <TooltipPrimitive.Content side={side} sideOffset={6}
           className="z-50 max-w-64 rounded-md bg-fg px-2.5 py-1.5 text-xs text-bg shadow-2">
           {content}

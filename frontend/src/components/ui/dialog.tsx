@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
+import { usePortalContainer } from '@/lib/portal'
 
 export const Dialog = DialogPrimitive.Root
 export const DialogTitle = DialogPrimitive.Title
@@ -22,8 +23,9 @@ export function DialogContent({ children, tone = 'neutral', locked = false, clas
   children: ReactNode; tone?: keyof typeof TONE; locked?: boolean; className?: string; label?: string
 }) {
   const block = (e: Event) => { if (locked) e.preventDefault() }
+  const portal = usePortalContainer()
   return (
-    <DialogPrimitive.Portal>
+    <DialogPrimitive.Portal container={portal}>
       <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/70 data-[state=open]:animate-overlay-in" />
       <DialogPrimitive.Content
         aria-label={label}

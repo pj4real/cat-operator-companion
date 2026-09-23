@@ -4,6 +4,7 @@ import { BatteryMedium, ChevronRight, Menu, Search, Wifi } from 'lucide-react'
 import { useApp } from '@/store/app'
 import { useApiStatus } from '@/hooks/queries'
 import { cn } from '@/lib/utils'
+import { usePortalContainer } from '@/lib/portal'
 import { Kbd } from '@/components/ui/controls'
 import { pageLabel, WORKSPACE_LABEL } from './nav'
 import { SidebarContent } from './Sidebar'
@@ -12,6 +13,7 @@ export function TopBar() {
   const { workspace, page, setPaletteOpen, navigate } = useApp()
   const { data: apiLive } = useApiStatus()
   const [drawer, setDrawer] = useState(false)
+  const portal = usePortalContainer()
   const isMac = typeof navigator !== 'undefined' && /Mac|iPad|iPhone/.test(navigator.platform)
 
   return (
@@ -23,7 +25,7 @@ export function TopBar() {
             <Menu size={20} />
           </button>
         </DialogPrimitive.Trigger>
-        <DialogPrimitive.Portal>
+        <DialogPrimitive.Portal container={portal}>
           <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/50 data-[state=open]:animate-overlay-in" />
           <DialogPrimitive.Content aria-describedby={undefined} className="fixed inset-y-0 left-0 z-50 w-72 border-r border-border bg-surface shadow-3">
             <DialogPrimitive.Title className="sr-only">Navigation</DialogPrimitive.Title>

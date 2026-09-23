@@ -530,6 +530,7 @@ export default function SiteScene({ sim, onZone = () => {} }) {
 
   return (
     <Canvas
+      resize={{ offsetSize: true }}
       shadows
       camera={{ position: [-12.5, 8.5, 14], fov: 34 }}
       dpr={[1, 1.5]}

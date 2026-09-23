@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 import { Command } from 'cmdk'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { ArrowRightLeft, Clapperboard, Moon, PlugZap, Volume2 } from 'lucide-react'
+import { ArrowRightLeft, Clapperboard, Moon, PlugZap, TabletSmartphone, Volume2 } from 'lucide-react'
 import { useApp, type Workspace } from '@/store/app'
 import { useFleet } from '@/hooks/queries'
 import { machine } from '@/data/demo'
+import { usePortalContainer } from '@/lib/portal'
 import { NAV, WORKSPACE_LABEL } from './nav'
 import { MachineThumb } from '@/components/ui/machine-thumb'
 
@@ -16,8 +17,9 @@ const GROUP = '[&_[cmdk-group-heading]]:label-caps [&_[cmdk-group-heading]]:px-3
  * open/close animation: it should feel instant.
  */
 export function CommandPalette() {
-  const { paletteOpen, setPaletteOpen, navigate, setDevice, toggleTheme, workspace, selectMachine, setBriefingOpen, setStory } = useApp()
+  const { paletteOpen, setPaletteOpen, navigate, setDevice, toggleTheme, workspace, selectMachine, setBriefingOpen, setStory, toggleFrame, frame } = useApp()
   const { data: fleet } = useFleet()
+  const portal = usePortalContainer()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -35,7 +37,7 @@ export function CommandPalette() {
 
   return (
     <DialogPrimitive.Root open={paletteOpen} onOpenChange={setPaletteOpen}>
-      <DialogPrimitive.Portal>
+      <DialogPrimitive.Portal container={portal}>
         <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/40" />
         <DialogPrimitive.Content aria-describedby={undefined}
           className="fixed top-[12vh] left-1/2 z-50 w-[min(640px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-surface text-fg shadow-3">
@@ -64,6 +66,9 @@ export function CommandPalette() {
                 </Command.Item>
                 <Command.Item value="story mode presenter ravi day chapters" onSelect={run(() => setStory(true))} className={ITEM}>
                   <Clapperboard size={17} className="text-fg-3" aria-hidden /> Story mode: Ravi's day <span className="ml-auto font-mono text-xs text-fg-3">S</span>
+                </Command.Item>
+                <Command.Item value="tablet frame device mockup presentation" onSelect={run(toggleFrame)} className={ITEM}>
+                  <TabletSmartphone size={17} className="text-fg-3" aria-hidden /> {frame ? 'Hide' : 'Show'} the tablet frame <span className="ml-auto font-mono text-xs text-fg-3">F</span>
                 </Command.Item>
                 <Command.Item value="replay voice briefing" onSelect={run(() => setBriefingOpen(true))} className={ITEM}>
                   <Volume2 size={17} className="text-fg-3" aria-hidden /> Replay voice briefing

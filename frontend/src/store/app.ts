@@ -37,6 +37,9 @@ interface AppState {
   selectedMachine: string
   today: ShiftSummary | null
   /** story mode: presenter chapter bar for Ravi's day */
+  /** presentation: run the app inside a rugged tablet mockup */
+  frame: boolean
+  toggleFrame: () => void
   storyOn: boolean
   storyIndex: number
   captionsOn: boolean
@@ -63,6 +66,11 @@ export const useApp = create<AppState>((set) => ({
   paletteOpen: false,
   selectedMachine: 'EXC001',
   today: null,
+  frame: (() => { try { return localStorage.getItem('cc_frame') !== '0' } catch { return true } })(),
+  toggleFrame: () => set((s) => {
+    try { localStorage.setItem('cc_frame', s.frame ? '0' : '1') } catch { /* ignore */ }
+    return { frame: !s.frame }
+  }),
   storyOn: new URLSearchParams(window.location.search).has('story'),
   storyIndex: 0,
   captionsOn: true,
