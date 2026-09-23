@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Meter, Skeleton } from '@/components/ui/controls'
+import { MachineThumb } from '@/components/ui/machine-thumb'
 import { ModelStatus, StatusBadge } from '@/components/ui/status'
 import { RISK } from '@/lib/constants'
 
@@ -25,13 +26,14 @@ export function MachineCard() {
   const mismatch = machine.pattern !== operator.usualPattern
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-start justify-between gap-3 bg-fg px-5 pt-4 pb-4 text-bg">
-        <div>
+      <div className="relative overflow-hidden bg-fg px-5 pt-4 pb-4 text-bg">
+        <div className="relative z-10 max-w-[55%]">
           <div className="label-caps opacity-70">Your machine today</div>
           <div className="mt-1 font-display text-[30px] leading-none font-bold tracking-tight">{machine.model}</div>
-          <div className="mt-1.5 font-mono text-xs opacity-75">{machine.id} · {machine.owner}</div>
+          <div className="mt-1.5 font-mono text-xs opacity-75">{machine.id}</div>
+          <div className="mt-0.5 text-xs opacity-75">{machine.owner}</div>
         </div>
-        <span className="mt-1 rounded-sm bg-brand px-1.5 py-0.5 font-mono text-[11px] font-medium text-brand-fg">Excavator</span>
+        <MachineThumb kind="Excavator" plate={false} className="absolute -right-3 bottom-0 h-[118%] w-[62%]" />
       </div>
       <div className="h-1.5 hazard-stripe" aria-hidden />
       <CardBody className="pt-4">

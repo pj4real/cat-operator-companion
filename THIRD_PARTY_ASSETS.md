@@ -33,6 +33,23 @@ site office) is original procedural geometry with no third-party asset risk.
   `useAnimations`. No geometry modification.
 - **Size:** ~114 KB each (~228 KB total)
 
+## Machine photos (`frontend/public/machines/`)
+
+Product-style thumbnails for each machine type. Sourced from Wikimedia Commons; **modified**:
+background removed (rembg, isnet-general-use), cropped, resized to 640×480 and saved as WebP.
+The modified files are shared under the same licence as each original.
+
+| File | Original | Author | Licence |
+|---|---|---|---|
+| `excavator.webp` | [Excavator side.jpg](https://commons.wikimedia.org/wiki/File:Excavator_side.jpg) (Cat 320) | Wikideas1 | CC0 1.0 |
+| `wheel-loader.webp` | [Caterpillar 950k Wheel Loader.jpg](https://commons.wikimedia.org/wiki/File:Caterpillar_950k_Wheel_Loader.jpg) | Matthew T Rader | CC BY-SA 4.0 |
+| `dumper.webp` | [CAT 730.jpg](https://commons.wikimedia.org/wiki/File:CAT_730.jpg) | Norbert Schnitzler | CC BY-SA 3.0 |
+| `backhoe.webp` | [JCB 3CX backhoe loader.jpg](https://commons.wikimedia.org/wiki/File:JCB_3CX_backhoe_loader.jpg) | Andrey Butko | CC BY-SA 3.0 |
+
+The photos show sibling models of the fleet data (950K for the 950 GC, 730 for the 725, 3CX
+for the 3DX); alt text names the machine type rather than the exact model. Caterpillar and
+JCB marks visible on the machines belong to their owners.
+
 ## Fonts
 
 Bundled from npm (`@fontsource/*`), served locally, no Google Fonts request at runtime.

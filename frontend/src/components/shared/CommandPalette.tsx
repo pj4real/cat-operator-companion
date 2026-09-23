@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { Command } from 'cmdk'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { ArrowRightLeft, Moon, PlugZap, Truck, Volume2 } from 'lucide-react'
+import { ArrowRightLeft, Moon, PlugZap, Volume2 } from 'lucide-react'
 import { useApp, type Workspace } from '@/store/app'
 import { useFleet } from '@/hooks/queries'
 import { machine } from '@/data/demo'
 import { NAV, WORKSPACE_LABEL } from './nav'
+import { MachineThumb } from '@/components/ui/machine-thumb'
 
 const ITEM = 'flex h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-[15px] text-fg-2 data-[selected=true]:bg-surface-3 data-[selected=true]:text-fg'
 const GROUP = '[&_[cmdk-group-heading]]:label-caps [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:text-fg-3'
@@ -76,7 +77,7 @@ export function CommandPalette() {
                 {fleet?.machines.map((m) => (
                   <Command.Item key={m.id} value={`${m.id} ${m.make} ${m.model} ${m.kind} ${m.operator}`}
                     onSelect={run(() => { selectMachine(m.id); navigate('supervisor', 'overview') })} className={ITEM}>
-                    <Truck size={17} className="text-fg-3" aria-hidden />
+                    <MachineThumb kind={m.kind} size="xs" />
                     <span className="font-mono text-sm font-medium text-fg">{m.id}</span>
                     <span className="flex-1 truncate">{m.make} {m.model} · {m.kind}</span>
                     <span className="font-mono text-xs text-fg-3">{m.health.risk_pct}% risk</span>

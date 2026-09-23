@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { CircleCheck, LoaderCircle, PlugZap } from 'lucide-react'
 import { machine, operator } from '@/data/demo'
 import { firstName, cn } from '@/lib/utils'
+import { MachineThumb } from '@/components/ui/machine-thumb'
 
 const STEPS = [
   { tag: 'ID', text: `Machine found: ${machine.model} · ${machine.id} (rental)` },
@@ -26,11 +27,13 @@ export function DockTransition({ onDone }: { onDone: () => void }) {
         <div className="h-1.5 hazard-stripe" aria-hidden />
         <div className="p-8">
           <div className="mb-6 flex items-center gap-4">
-            <span className="flex h-12 w-12 items-center justify-center rounded-md bg-brand text-brand-fg"><PlugZap size={26} strokeWidth={2.4} /></span>
-            <div>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-brand text-brand-fg"><PlugZap size={26} strokeWidth={2.4} /></span>
+            <div className="min-w-0 flex-1">
               <div className="label-caps text-fg-3">Docking · {machine.id}</div>
               <h1 className="font-display text-[28px] leading-tight font-bold">Becoming the machine display</h1>
             </div>
+            <MachineThumb kind="Excavator" size="md"
+              className={cn('transition-[opacity,transform] duration-500 ease-out', step >= 1 ? 'translate-x-0 opacity-100' : 'translate-x-3 opacity-0')} />
           </div>
           <ol className="space-y-3" aria-live="polite">
             {STEPS.map((s, i) => (
