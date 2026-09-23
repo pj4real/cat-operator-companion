@@ -33,6 +33,13 @@ site office) is original procedural geometry with no third-party asset risk.
   `useAnimations`. No geometry modification.
 - **Size:** ~114 KB each (~228 KB total)
 
+## Fonts
+
+Bundled from npm (`@fontsource/*`), served locally, no Google Fonts request at runtime.
+
+- **Barlow** and **Barlow Condensed** by Jeremy Tribby, SIL Open Font License 1.1
+- **JetBrains Mono** by JetBrains, SIL Open Font License 1.1
+
 ## Total added asset size
 
 ~354 KB (well under the 5 MB budget), no Draco compression needed given the

@@ -12,10 +12,10 @@ Demo scope: one operator (Ravi, OP1001) on one machine (Cat 320 excavator, EXC00
 
 | Feature | Expected outcome it covers | How |
 | --- | --- | --- |
-| Pre-shift briefing + task list | Daily task dashboard | React, data in `frontend/src/data/demo.js` |
+| Pre-shift briefing + task list | Daily task dashboard | React, data in `frontend/src/data/demo.ts` |
 | Task time as P10 / P50 / P90 with reasons | Task time estimation | Gradient boosting, quantile loss (`ml/train.py`) |
-| Dock animation: machine ID, J1939 read, profile, joystick pattern check | Operator companion | `DockTransition.jsx` |
-| 3D site: excavator dig/swing/dump cycle, dumpers arriving, workers, fibre line, 11 kV line | Proximity hazards, working conditions | react-three-fiber (`SiteScene.jsx`) |
+| Dock animation: machine ID, J1939 read, profile, joystick pattern check | Operator companion | `docked/DockTransition.tsx` |
+| 3D site: excavator dig/swing/dump cycle, dumpers arriving, workers, fibre line, 11 kV line | Proximity hazards, working conditions | react-three-fiber (`docked/SiteScene.jsx`) |
 | Swing radius watch: green, amber, red. Swing held when a person is inside. | Proximity hazards | distance check every frame |
 | Restart guard: work cannot restart after idle while the seatbelt is off | Seatbelt compliance | interlock in the sim |
 | Idle counter in minutes, litres and rupees, with the reason | Unusual behaviour (idling) | Random forest (`/classify/idle`) |
@@ -28,7 +28,7 @@ Demo scope: one operator (Ravi, OP1001) on one machine (Cat 320 excavator, EXC00
 | What-if on a task (change weather, skill, soil, re-predict) | Task time estimation | `/predict/task` |
 | Unusual behaviour card while docked, per-hour rates from the sim | Unusual behaviour | Isolation forest + rules (`/score/behaviour`) |
 | End-of-shift summary: verified hours, idle split justified vs avoidable, events, new lessons | Operator training hub, unusual behaviour | handheld screen, from the sim |
-| Supervisor view: site KPIs, machine table, health and fuel predictions, site map, alert budget, official telemetry rows scored | All five | `FleetView.jsx`, `GET /fleet` |
+| Supervisor view: site KPIs, machine table, health and fuel predictions, site map, alert budget, official telemetry rows scored | All five | `fleet/FleetPages.tsx`, `GET /fleet` |
 
 ## Run it
 
@@ -49,6 +49,7 @@ uvicorn api:app --reload --port 8000    # docs at http://localhost:8000/docs
 cd frontend
 npm install
 npm run dev                 # http://localhost:5173
+npm run check               # TypeScript + lint
 ```
 If the API is not running, the app still works and falls back to cached predictions.
 
@@ -80,16 +81,21 @@ Synthetic data: `generate_data.py` extends the two tables from the problem state
 
 ## Structure
 ```
-frontend/   React + Vite + Tailwind + react-three-fiber
-  src/components/NormalMode.jsx     handheld screen
-  src/components/DockTransition.jsx docking sequence
-  src/components/DockedMode.jsx     machine display + safety logic
-  src/components/SiteScene.jsx      3D site and excavator
-  src/components/FleetView.jsx      supervisor view (site KPIs, machines, map, alerts)
-  src/components/ui.jsx             shared Card, expected-outcome tag, live badge
-  src/lib/sim.js                    shared simulation state
+frontend/   React 19 + TypeScript + Vite + Tailwind v4 + react-three-fiber
+  DESIGN.md                        design system: tokens, type, components, motion, accessibility
+  src/styles/globals.css           design tokens (light handheld, dark cab display)
+  src/components/ui/               primitives: Button, Card, StatusBadge, Kpi, Dialog, Segmented…
+  src/components/shared/           app shell: sidebar, top bar, ⌘K command palette, telemetry table
+  src/components/operator/         Today, Site & safety, Training hub, Hours & activity, voice briefing
+  src/components/docked/           docking sequence, in-cab machine display, 3D site scene
+  src/components/fleet/            supervisor: Site overview, Telemetry audit
+  src/hooks/queries.ts             ML API calls (React Query) with cached fallbacks
+  src/store/app.ts                 app state (Zustand), URL-synced pages
+  src/lib/sim.ts                   shared simulation state
 ml/         data generator, training (5 models), FastAPI server
 ```
+
+Shortcuts: `⌘K` / `Ctrl K` search and jump anywhere. On the docked display: `W` worker walks in, `B` unbuckle during idle, `V` voice near-miss, `H` hide the demo buttons.
 
 ## Roadmap (pitch only, not built)
 Site mesh between tablets, auto E-fence from Call Before u Dig data, shift handover cards, mentor mode, weekly fatigue and vibration dose, skill passport QR.
