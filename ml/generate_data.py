@@ -7,8 +7,11 @@ pattern below is planted on purpose, so the models have something real to learn
 and we can explain exactly why they predict what they predict.
 
 Run:  python generate_data.py
-Out:  data/tasks.csv, data/idle_windows.csv, data/shift_hours.csv
+Out:  data/tasks.csv, data/idle_windows.csv, data/shift_hours.csv,
+      data/machine_days.csv, data/fleet.json
 """
+import json
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -80,6 +83,23 @@ sample = pd.DataFrame([
     ["T005", "Demolition", "Windy", "Intermediate", "Rock", 6, 31, 105, 90, 105],
 ], columns=tasks.columns)
 tasks = pd.concat([sample, tasks], ignore_index=True)
+
+# fuel burn rate (L/h) while doing the task, Cat 320 class. Planted: harder soil and
+# less skill burn more (more passes, more throttle), older machines and heat burn more.
+FUEL_BASE = {"Earth Excavation": 16, "Trenching": 14, "Material Loading": 15, "Grading": 11, "Demolition": 18}
+FUEL_SOIL = {"Sand": 0.96, "Loam": 1.0, "Clay": 1.08, "Rock": 1.15}
+FUEL_SKILL = {"Beginner": 1.12, "Intermediate": 1.04, "Expert": 0.97}
+
+
+def fuel_rate(r):
+    lph = FUEL_BASE[r.task_type] * FUEL_SOIL[r.soil] * FUEL_SKILL[r.operator_skill]
+    lph *= 1 + 0.015 * r.machine_age_yrs
+    if r.ambient_temp_c > 38:
+        lph *= 1.05
+    return round(lph * rng.lognormal(0, 0.06), 2)
+
+
+tasks["fuel_lph"] = [fuel_rate(r) for r in tasks.itertuples()]
 tasks.to_csv(OUT / "tasks.csv", index=False)
 
 # ---------------------------------------------------------------------------
@@ -153,4 +173,103 @@ for day in range(90):
                               planted_anomaly=int(anomaly)))
 pd.DataFrame(hour_rows).to_csv(OUT / "shift_hours.csv", index=False)
 
-print(f"tasks: {len(tasks)}  idle windows: {len(idle_rows)}  shift hours: {len(hour_rows)}")
+# ---------------------------------------------------------------------------
+# 4. MACHINE DAYS  (daily health snapshot: sensors + S·O·S oil sample)
+#    label = did a component fail within the next 50 engine hours?
+#    Planted failure modes: dust ingress, coolant in oil, hydraulic overheating,
+#    overdue oil change. Healthy machines still fail sometimes (3%).
+# ---------------------------------------------------------------------------
+day_rows = []
+for _ in range(3000):
+    age = int(rng.integers(1, 11))
+    r = dict(
+        hyd_oil_temp_max=rng.normal(78, 5), coolant_temp_max=rng.normal(88, 3),
+        engine_load_pct=rng.normal(62, 10), hrs_since_oil_change=rng.uniform(0, 480),
+        sos_iron_ppm=rng.normal(18, 5), sos_silicon_ppm=rng.normal(9, 2.5),
+        sos_soot_pct=rng.normal(0.8, 0.25), sos_water_pct=abs(rng.normal(0.05, 0.03)),
+        idle_pct=rng.normal(35, 10), fault_codes_7d=rng.poisson(0.5), machine_age_yrs=age,
+    )
+    p_fail = 0.03 + 0.004 * age
+    if rng.random() < 0.16:
+        mode = rng.choice(["dust", "coolant", "hyd_heat", "overdue"])
+        if mode == "dust":
+            r["sos_silicon_ppm"] = rng.uniform(22, 45); r["sos_iron_ppm"] = rng.uniform(28, 60)
+        elif mode == "coolant":
+            r["sos_water_pct"] = rng.uniform(0.25, 0.8); r["coolant_temp_max"] = rng.uniform(96, 106)
+        elif mode == "hyd_heat":
+            r["hyd_oil_temp_max"] = rng.uniform(90, 102); r["fault_codes_7d"] += rng.poisson(2)
+        else:
+            r["hrs_since_oil_change"] = rng.uniform(520, 720); r["sos_soot_pct"] = rng.uniform(1.6, 3.0)
+        p_fail = 0.65 + 0.02 * age
+    r["fails_within_50h"] = int(rng.random() < p_fail)
+    day_rows.append({k: (round(float(v), 2) if not isinstance(v, int) else v) for k, v in r.items()})
+pd.DataFrame(day_rows).to_csv(OUT / "machine_days.csv", index=False)
+
+# ---------------------------------------------------------------------------
+# 5. FLEET SNAPSHOT  (today on the NH-48 site; the API scores it with the models)
+# ---------------------------------------------------------------------------
+HEALTHY = dict(hyd_oil_temp_max=79, coolant_temp_max=88, engine_load_pct=64, hrs_since_oil_change=210,
+               sos_iron_ppm=17, sos_silicon_ppm=8, sos_soot_pct=0.7, sos_water_pct=0.04,
+               idle_pct=30, fault_codes_7d=0)
+
+
+def task(t, weather, soil, skill, age, temp, vol, plan, start, title=""):
+    return dict(task_type=t, weather=weather, operator_skill=skill, soil=soil, machine_age_yrs=age,
+                ambient_temp_c=temp, volume_m3=vol, planner_estimate_min=plan, start=start, title=title or t)
+
+
+fleet = [
+    dict(id="EXC001", make="Cat", model="320", kind="Excavator", operator="Ravi Kumar (OP1001)", zone="B",
+         x=38, y=55, hours=1530.2, tank_l=345, fuel_l=31, working_h=6.1, service_due_h=12, cycles=184, payload_t=0,
+         idle_min={"waiting_for_truck": 62, "heat_rest": 40, "warm_up": 9, "cool_down": 4, "waste": 33},
+         seatbelt_violations=2,
+         health={**HEALTHY, "sos_silicon_ppm": 24, "sos_iron_ppm": 29, "machine_age_yrs": 4, "fault_codes_7d": 1},
+         hour_stats=dict(fuel_l=3.8, load_cycles=2, idle_min=55, seatbelt_off_min=30, harsh_swings=1, raised_bucket_travel=0),
+         faults=[{"code": "E0171-1", "severity": "low", "text": "Air filter restriction, early"}],
+         tasks=[task("Grading", "Rainy", "Loam", "Intermediate", 4, 29, 120, 42, "14:30", "T103 Grade shoulder")]),
+    dict(id="EXC004", make="Cat", model="320", kind="Excavator", operator="Suresh Pal (OP1007)", zone="C",
+         x=70, y=30, hours=4210.8, tank_l=345, fuel_l=205, working_h=7.4, service_due_h=140, cycles=231, payload_t=0,
+         idle_min={"waiting_for_truck": 38, "heat_rest": 40, "warm_up": 8, "cool_down": 5, "waste": 12},
+         seatbelt_violations=0,
+         health={**HEALTHY, "machine_age_yrs": 7},
+         hour_stats=dict(fuel_l=5.6, load_cycles=12, idle_min=16, seatbelt_off_min=0, harsh_swings=1, raised_bucket_travel=0),
+         faults=[],
+         tasks=[task("Earth Excavation", "Sunny", "Clay", "Expert", 7, 35, 200, 110, "13:40")]),
+    dict(id="WHL002", make="Cat", model="950 GC", kind="Wheel loader", operator="Anil Yadav (OP1012)", zone="A",
+         x=18, y=28, hours=2875.0, tank_l=300, fuel_l=164, working_h=6.8, service_due_h=48, cycles=312, payload_t=1180,
+         idle_min={"waiting_for_truck": 55, "heat_rest": 40, "warm_up": 10, "cool_down": 6, "waste": 21},
+         seatbelt_violations=1,
+         health={**HEALTHY, "hyd_oil_temp_max": 96, "fault_codes_7d": 3, "machine_age_yrs": 5},
+         hour_stats=dict(fuel_l=6.4, load_cycles=14, idle_min=12, seatbelt_off_min=0, harsh_swings=7, raised_bucket_travel=3),
+         faults=[{"code": "E0600-2", "severity": "high", "text": "Hydraulic oil temperature high"},
+                 {"code": "E0600-1", "severity": "medium", "text": "Hydraulic oil temperature warning"}],
+         tasks=[task("Material Loading", "Sunny", "Sand", "Intermediate", 5, 36, 220, 55, "13:40")]),
+    dict(id="DT-03", make="Cat", model="725", kind="Dumper", operator="Manoj Singh (OP1021)", zone="Haul road",
+         x=52, y=78, hours=6120.4, tank_l=400, fuel_l=240, working_h=7.9, service_due_h=260, cycles=21, payload_t=483,
+         idle_min={"waiting_for_truck": 0, "heat_rest": 40, "warm_up": 7, "cool_down": 4, "waste": 18},
+         seatbelt_violations=0,
+         health={**HEALTHY, "sos_water_pct": 0.42, "coolant_temp_max": 101, "machine_age_yrs": 8},
+         hour_stats=dict(fuel_l=7.0, load_cycles=3, idle_min=14, seatbelt_off_min=0, harsh_swings=0, raised_bucket_travel=0),
+         faults=[{"code": "E0361-2", "severity": "high", "text": "Coolant temperature high"}],
+         tasks=[]),
+    dict(id="DT-07", make="Cat", model="725", kind="Dumper", operator="Imran Khan (OP1024)", zone="Haul road",
+         x=30, y=70, hours=3380.9, tank_l=400, fuel_l=196, working_h=7.6, service_due_h=90, cycles=19, payload_t=437,
+         idle_min={"waiting_for_truck": 0, "heat_rest": 40, "warm_up": 6, "cool_down": 5, "waste": 9},
+         seatbelt_violations=0,
+         health={**HEALTHY, "machine_age_yrs": 4},
+         hour_stats=dict(fuel_l=6.8, load_cycles=3, idle_min=10, seatbelt_off_min=0, harsh_swings=0, raised_bucket_travel=0),
+         faults=[],
+         tasks=[]),
+    dict(id="BHL-11", make="JCB", model="3DX", kind="Backhoe loader (rental, mixed fleet)", operator="Deepak (OP1031)",
+         zone="A", x=12, y=50, hours=8930.0, tank_l=120, fuel_l=41, working_h=4.2, service_due_h=-35, cycles=96, payload_t=0,
+         idle_min={"waiting_for_truck": 20, "heat_rest": 40, "warm_up": 12, "cool_down": 3, "waste": 88},
+         seatbelt_violations=4,
+         health={**HEALTHY, "hrs_since_oil_change": 585, "sos_soot_pct": 2.1, "machine_age_yrs": 9},
+         hour_stats=dict(fuel_l=3.6, load_cycles=1, idle_min=58, seatbelt_off_min=41, harsh_swings=2, raised_bucket_travel=1),
+         faults=[{"code": "SVC", "severity": "medium", "text": "Oil change 85 h overdue"}],
+         tasks=[task("Trenching", "Sunny", "Clay", "Beginner", 9, 36, 60, 30, "13:40")]),
+]
+(OUT / "fleet.json").write_text(json.dumps(fleet, indent=2))
+
+print(f"tasks: {len(tasks)}  idle windows: {len(idle_rows)}  shift hours: {len(hour_rows)}  "
+      f"machine days: {len(day_rows)}  fleet machines: {len(fleet)}")

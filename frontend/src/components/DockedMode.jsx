@@ -3,7 +3,8 @@ import { Fuel, Gauge, Thermometer, Timer, Truck, ShieldAlert, ShieldCheck, Power
 import SiteScene from './SiteScene'
 import { machine, operator, hourly } from '../data/demo'
 import { classifyIdle, scoreBehaviour, structureIncident } from '../lib/api'
-import { SIM_SPEED, DIESEL_INR, logEvent } from '../lib/sim'
+import { SIM_SPEED, DIESEL_INR, IDLE_BURN_LPH, logEvent } from '../lib/sim'
+import { LiveBadge, OutcomeTag } from './ui'
 
 const IDLE_TEXT = {
   waiting_for_truck: 'Waiting for truck',
@@ -51,12 +52,10 @@ export default function DockedMode({ sim, onUndock }) {
   const [snap, setSnap] = useState({ ...sim })
   const [patternOpen, setPatternOpen] = useState(true)
   const [idle, setIdle] = useState(null)
-  const [behaviour, setBehaviour] = useState(null)
   const [report, setReport] = useState(null)
   const [listening, setListening] = useState(false)
   const blackbox = useRef([])
   const idleEpisode = useRef(false)
-  const behaviourMinute = useRef(-1)
 
   // read the simulation 4x per second + keep a 60 s black box
   useEffect(() => {
@@ -69,24 +68,6 @@ export default function DockedMode({ sim, onUndock }) {
     }, 250)
     return () => clearInterval(id)
   }, [sim])
-
-  // unusual-behaviour score, throttled to roughly once per simulated minute
-  useEffect(() => {
-    const simMinute = Math.floor((snap.t * SIM_SPEED) / 60)
-    if (simMinute === behaviourMinute.current) return
-    behaviourMinute.current = simMinute
-    const stats = {
-      fuel_l: snap.idleFuelL, // real, but only idle-hour fuel is modeled
-      load_cycles: snap.cycles,
-      idle_min: snap.idleSec / 60,
-      seatbelt_off_min: snap.seatbeltOffSec / 60,
-      harsh_swings: 0, // approximated: no swing-dynamics signal exists in the sim yet
-      raised_bucket_travel: 0, // approximated: no bucket-height signal exists in the sim yet
-    }
-    scoreBehaviour(stats)
-      .then(setBehaviour)
-      .catch(() => setBehaviour({ ...ruleBasedBehaviour(stats), live: false }))
-  }, [snap])
 
   // idle reason from the ML model, once per idle episode
   const isIdle = snap.engineOn && !snap.working && !snap.truckPresent
@@ -101,6 +82,30 @@ export default function DockedMode({ sim, onUndock }) {
       .then((r) => setIdle({ ...r, etaMin }))
       .catch(() => setIdle({ reason: etaMin < 7 ? 'waiting_for_truck' : 'waste', confidence: 0.9, etaMin, live: false }))
   }, [isIdle, sim])
+
+  // unusual behaviour: this shift's per-hour rates (the model was trained on hourly stats, so
+  // running totals would drift out of range), scored every 3 s by the isolation forest + rules.
+  // Idle counted = avoidable idle only; waiting with a truck close is justified, not unusual.
+  // harsh_swings / raised_bucket_travel are fixed: the sim has no swing-dynamics or bucket-height signal.
+  const [beh, setBeh] = useState(null)
+  useEffect(() => {
+    const score = () => {
+      const hrs = (sim.t * SIM_SPEED) / 3600
+      if (hrs < 0.1) return
+      const perHour = (x) => x / hrs
+      const cycles = Math.round(perHour(sim.cycles))
+      const idle = Math.min(perHour(sim.idleWasteSec / 60), 60)
+      const hour = { fuel_l: +(0.3 * cycles + (idle / 60) * IDLE_BURN_LPH).toFixed(1), load_cycles: cycles, idle_min: +idle.toFixed(1),
+        seatbelt_off_min: +Math.min(perHour(sim.seatbeltOffSec / 60), 60).toFixed(1), harsh_swings: 1, raised_bucket_travel: 0 }
+      scoreBehaviour(hour)
+        .then((r) => setBeh({ ...r, hour }))
+        .catch(() => setBeh({ ...ruleBasedBehaviour(hour), hour, live: false }))
+    }
+    score()
+    const id = setInterval(score, 3000)
+    return () => clearInterval(id)
+  }, [sim])
+  const behFlag = beh && (beh.unusual || beh.reasons.length > 0)
 
   const etaMin = (snap.nextTruckEtaSec * SIM_SPEED) / 60
   const idleMin = snap.idleSec / 60
@@ -206,7 +211,7 @@ export default function DockedMode({ sim, onUndock }) {
           </div>
 
           <div className={`rounded-xl border p-3 ${isIdle ? 'border-warn/60 bg-warn/10' : 'border-line bg-black/20'}`}>
-            <div className="text-[11px] uppercase tracking-wider text-muted">Idle today</div>
+            <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">Idle today <OutcomeTag>Excessive idling</OutcomeTag></div>
             <div className="flex items-baseline gap-3">
               <div className="text-2xl font-bold">{idleMin.toFixed(1)} min</div>
               <div className="text-sm text-muted">{snap.idleFuelL.toFixed(2)} L · ₹{(snap.idleFuelL * DIESEL_INR).toFixed(0)}</div>
@@ -224,40 +229,31 @@ export default function DockedMode({ sim, onUndock }) {
             )}
           </div>
 
-          <div className={`rounded-xl border p-3 ${behaviour?.unusual ? 'border-danger/60 bg-danger/10' : 'border-line bg-black/20'}`}>
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] uppercase tracking-wider text-muted">Unusual behaviour</div>
-              {behaviour && (
-                <span className={`text-[11px] ${behaviour.live ? 'text-safe' : 'text-muted'}`}>{behaviour.live ? '● ML model live' : '○ cached'}</span>
-              )}
+          <div className={`rounded-xl border p-3 text-sm ${behFlag ? 'border-warn/60 bg-warn/10' : 'border-line bg-black/20'}`}>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[11px] uppercase tracking-wider text-muted">Unusual behaviour · per hour</span>
+              <LiveBadge live={beh?.live} />
             </div>
-            {behaviour ? (
+            {!beh ? <div className="text-xs text-muted">Scoring after the first few minutes…</div> : (
               <>
-                <div className={`mt-1 text-lg font-bold ${behaviour.unusual ? 'text-danger' : 'text-safe'}`}>
-                  {behaviour.unusual ? 'Unusual pattern this hour' : 'Normal'}
-                </div>
-                {behaviour.reasons?.length > 0 ? (
-                  <ul className="mt-1 space-y-0.5 text-xs text-slate-300">
-                    {behaviour.reasons.map((r, i) => <li key={i}>· {r}</li>)}
-                  </ul>
-                ) : behaviour.unusual && (
-                  <div className="mt-1 text-xs text-slate-300">Flagged by the anomaly model; no single rule matched</div>
-                )}
+                <div className={`font-bold ${behFlag ? 'text-warn' : 'text-safe'}`}>{behFlag ? 'Unusual for you' : 'Normal for you'}
+                  <span className="ml-2 text-[11px] font-normal text-muted">model {beh.unusual ? 'flags' : 'ok'}{beh.score !== undefined ? ` · score ${beh.score}` : ''}</span></div>
+                {beh.reasons.map((r) => <div key={r} className="text-xs text-slate-300">· {r}</div>)}
+                {beh.unusual && beh.reasons.length === 0 && <div className="text-xs text-slate-300">· Flagged by the anomaly model; no single rule matched</div>}
+                <div className="mt-1 text-[10px] text-muted">{beh.hour.load_cycles} cycles/h · {beh.hour.idle_min} min avoidable idle/h · belt off {beh.hour.seatbelt_off_min} min/h</div>
               </>
-            ) : (
-              <div className="mt-1 text-sm text-muted">Scoring…</div>
             )}
           </div>
 
           <div className="rounded-xl border border-line bg-black/20 p-3 text-sm">
-            <div className="mb-2 text-[11px] uppercase tracking-wider text-muted">Limits from site data</div>
+            <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">Limits from site data <OutcomeTag>Proximity hazards</OutcomeTag></div>
             <div className="flex items-center justify-between"><span>E-floor (fibre at 1.2 m)</span><b className="text-orange-300">0.9 m</b></div>
             <div className="flex items-center justify-between"><span>E-ceiling (11 kV line)</span><b className="text-red-300">6.0 m</b></div>
             <div className="flex items-center justify-between"><span>Swing radius watch</span><b className={snap.zone === 'clear' ? 'text-safe' : snap.zone === 'caution' ? 'text-warn' : 'text-danger'}>{snap.zone}</b></div>
           </div>
 
           <div className="rounded-xl border border-line bg-black/20 p-3">
-            <div className="mb-2 text-[11px] uppercase tracking-wider text-muted">Official telemetry sample · EXC001 / OP1001</div>
+            <div className="mb-2 flex items-center justify-between gap-2 text-[11px] uppercase tracking-wider text-muted">Official telemetry sample <OutcomeTag>Unusual behaviour</OutcomeTag></div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[11px]">
                 <thead className="text-muted">
@@ -290,7 +286,7 @@ export default function DockedMode({ sim, onUndock }) {
           </div>
 
           <div className="min-h-0 flex-1 rounded-xl border border-line bg-black/20 p-3">
-            <div className="mb-2 text-[11px] uppercase tracking-wider text-muted">Event log</div>
+            <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">Event log <OutcomeTag>Incident logging</OutcomeTag></div>
             <ul className="space-y-1.5">
               {snap.events.map((e) => (
                 <li key={e.id} className="flex gap-2 text-xs">
@@ -316,7 +312,7 @@ export default function DockedMode({ sim, onUndock }) {
 
       {snap.haltReason === 'seatbelt' && (
         <Modal tone="danger">
-          <div className="mb-2 flex items-center gap-2 text-danger"><ShieldAlert size={22} /><b className="text-lg">Restart guard</b></div>
+          <div className="mb-2 flex items-center gap-2 text-danger"><ShieldAlert size={22} /><b className="text-lg">Restart guard</b><span className="ml-auto"><OutcomeTag>Seatbelt compliance</OutcomeTag></span></div>
           <p className="text-sm text-slate-300">The truck is here and work is about to restart after {idleMin.toFixed(0)} min idle, but your seatbelt is off. In your data, unbuckling happens during long idles and carries into the restart.</p>
           <button onClick={fasten} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-safe py-2.5 font-bold text-black"><ShieldCheck size={18} />Seatbelt fastened</button>
         </Modal>
@@ -325,7 +321,7 @@ export default function DockedMode({ sim, onUndock }) {
       {report && (
         <Modal>
           <div className="mb-2 flex items-center gap-2">
-            <Mic size={18} className="text-cat" /><b>Near-miss report</b>
+            <Mic size={18} className="text-cat" /><b>Near-miss report</b><OutcomeTag>Incident logging</OutcomeTag>
             <span className={`ml-auto text-[11px] ${report.live ? 'text-safe' : 'text-muted'}`}>{report.live ? '● LLM structured' : '○ rule-based'}</span>
           </div>
           <div className="rounded-lg bg-black/30 p-2 text-sm italic text-slate-300">"{report.transcript}"</div>

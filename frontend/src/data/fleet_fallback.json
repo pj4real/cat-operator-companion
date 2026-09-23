@@ -1,0 +1,568 @@
+{
+ "site": "NH-48 widening, Sriperumbudur",
+ "kpis": {
+  "utilization_pct": 78,
+  "idle_pct": 22,
+  "idle_justified_pct": 73,
+  "idle_waste_h": 3.0,
+  "fuel_used_l": 643,
+  "co2_kg": 1723,
+  "seatbelt_violations": 7,
+  "cycles": 863
+ },
+ "machines": [
+  {
+   "id": "EXC001",
+   "make": "Cat",
+   "model": "320",
+   "kind": "Excavator",
+   "operator": "Ravi Kumar (OP1001)",
+   "zone": "B",
+   "x": 38,
+   "y": 55,
+   "hours": 1530.2,
+   "tank_l": 345,
+   "fuel_l": 31,
+   "working_h": 6.1,
+   "service_due_h": 12,
+   "cycles": 184,
+   "payload_t": 0,
+   "seatbelt_violations": 2,
+   "faults": [
+    {
+     "code": "E0171-1",
+     "severity": "low",
+     "text": "Air filter restriction, early"
+    }
+   ],
+   "idle_min": 148,
+   "idle_waste_min": 33,
+   "idle_by_reason": {
+    "waiting_for_truck": 62,
+    "heat_rest": 40,
+    "warm_up": 9,
+    "cool_down": 4,
+    "waste": 33
+   },
+   "fuel_pct": 9,
+   "health": {
+    "risk_pct": 45,
+    "level": "watch",
+    "reasons": [
+     {
+      "factor": "Silicon in oil",
+      "value": "24 ppm",
+      "usual": "8",
+      "points": 41,
+      "component": "Engine air intake",
+      "action": "Check air filter and intake hoses: dust is getting into the engine"
+     }
+    ],
+    "component": "Engine air intake",
+    "action": "Check air filter and intake hoses: dust is getting into the engine"
+   },
+   "fuel_plan": {
+    "tasks": [
+     {
+      "title": "T103 Grade shoulder",
+      "start": "14:30",
+      "end": "15:23",
+      "lph": 12.4,
+      "litres": 10.9,
+      "fuel_left_l": 15.1
+     }
+    ],
+    "litres_planned": 15.9,
+    "co2_kg": 42,
+    "runs_out_at": "15:12",
+    "refuel_before": "T103 Grade shoulder",
+    "fuel_left_end_l": 15.1
+   },
+   "behaviour": {
+    "unusual": true,
+    "score": 0.676,
+    "reasons": [
+     "Idle 55 min with only 2 load cycles (usual 18 min)",
+     "Seatbelt off for 30 min while engine running"
+    ]
+   }
+  },
+  {
+   "id": "EXC004",
+   "make": "Cat",
+   "model": "320",
+   "kind": "Excavator",
+   "operator": "Suresh Pal (OP1007)",
+   "zone": "C",
+   "x": 70,
+   "y": 30,
+   "hours": 4210.8,
+   "tank_l": 345,
+   "fuel_l": 205,
+   "working_h": 7.4,
+   "service_due_h": 140,
+   "cycles": 231,
+   "payload_t": 0,
+   "seatbelt_violations": 0,
+   "faults": [],
+   "idle_min": 103,
+   "idle_waste_min": 12,
+   "idle_by_reason": {
+    "waiting_for_truck": 38,
+    "heat_rest": 40,
+    "warm_up": 8,
+    "cool_down": 5,
+    "waste": 12
+   },
+   "fuel_pct": 59,
+   "health": {
+    "risk_pct": 5,
+    "level": "low",
+    "reasons": [],
+    "component": null,
+    "action": "No action needed. Normal walkaround."
+   },
+   "fuel_plan": {
+    "tasks": [
+     {
+      "title": "Earth Excavation",
+      "start": "13:40",
+      "end": "15:50",
+      "lph": 18.8,
+      "litres": 40.7,
+      "fuel_left_l": 163.4
+     }
+    ],
+    "litres_planned": 41.6,
+    "co2_kg": 111,
+    "runs_out_at": null,
+    "refuel_before": null,
+    "fuel_left_end_l": 163.4
+   },
+   "behaviour": {
+    "unusual": false,
+    "score": 0.36,
+    "reasons": []
+   }
+  },
+  {
+   "id": "WHL002",
+   "make": "Cat",
+   "model": "950 GC",
+   "kind": "Wheel loader",
+   "operator": "Anil Yadav (OP1012)",
+   "zone": "A",
+   "x": 18,
+   "y": 28,
+   "hours": 2875.0,
+   "tank_l": 300,
+   "fuel_l": 164,
+   "working_h": 6.8,
+   "service_due_h": 48,
+   "cycles": 312,
+   "payload_t": 1180,
+   "seatbelt_violations": 1,
+   "faults": [
+    {
+     "code": "E0600-2",
+     "severity": "high",
+     "text": "Hydraulic oil temperature high"
+    },
+    {
+     "code": "E0600-1",
+     "severity": "medium",
+     "text": "Hydraulic oil temperature warning"
+    }
+   ],
+   "idle_min": 132,
+   "idle_waste_min": 21,
+   "idle_by_reason": {
+    "waiting_for_truck": 55,
+    "heat_rest": 40,
+    "warm_up": 10,
+    "cool_down": 6,
+    "waste": 21
+   },
+   "fuel_pct": 55,
+   "health": {
+    "risk_pct": 79,
+    "level": "high",
+    "reasons": [
+     {
+      "factor": "Hydraulic oil peak",
+      "value": "96 \u00c2\u00b0C",
+      "usual": "79",
+      "points": 74,
+      "component": "Hydraulics",
+      "action": "Clean hydraulic oil cooler, check oil level"
+     },
+     {
+      "factor": "Fault codes, last 7 days",
+      "value": "3",
+      "usual": "0",
+      "points": 13,
+      "component": "Electronics",
+      "action": "Ask dealer for a remote troubleshoot"
+     }
+    ],
+    "component": "Hydraulics",
+    "action": "Clean hydraulic oil cooler, check oil level"
+   },
+   "fuel_plan": {
+    "tasks": [
+     {
+      "title": "Material Loading",
+      "start": "13:40",
+      "end": "14:42",
+      "lph": 16.1,
+      "litres": 16.5,
+      "fuel_left_l": 146.7
+     }
+    ],
+    "litres_planned": 17.3,
+    "co2_kg": 46,
+    "runs_out_at": null,
+    "refuel_before": null,
+    "fuel_left_end_l": 146.7
+   },
+   "behaviour": {
+    "unusual": true,
+    "score": 0.636,
+    "reasons": [
+     "7 harsh swings this hour (usual 1)",
+     "Travelling with bucket raised"
+    ]
+   }
+  },
+  {
+   "id": "DT-03",
+   "make": "Cat",
+   "model": "725",
+   "kind": "Dumper",
+   "operator": "Manoj Singh (OP1021)",
+   "zone": "Haul road",
+   "x": 52,
+   "y": 78,
+   "hours": 6120.4,
+   "tank_l": 400,
+   "fuel_l": 240,
+   "working_h": 7.9,
+   "service_due_h": 260,
+   "cycles": 21,
+   "payload_t": 483,
+   "seatbelt_violations": 0,
+   "faults": [
+    {
+     "code": "E0361-2",
+     "severity": "high",
+     "text": "Coolant temperature high"
+    }
+   ],
+   "idle_min": 69,
+   "idle_waste_min": 18,
+   "idle_by_reason": {
+    "waiting_for_truck": 0,
+    "heat_rest": 40,
+    "warm_up": 7,
+    "cool_down": 4,
+    "waste": 18
+   },
+   "fuel_pct": 60,
+   "health": {
+    "risk_pct": 88,
+    "level": "high",
+    "reasons": [
+     {
+      "factor": "Water in oil",
+      "value": "0.42 %",
+      "usual": "0.04",
+      "points": 80,
+      "component": "Cooling system",
+      "action": "Coolant may be leaking into oil: check oil cooler and head gasket"
+     },
+     {
+      "factor": "Coolant peak",
+      "value": "101 \u00c2\u00b0C",
+      "usual": "88",
+      "points": 7,
+      "component": "Cooling system",
+      "action": "Clean radiator core and check coolant level"
+     }
+    ],
+    "component": "Cooling system",
+    "action": "Coolant may be leaking into oil: check oil cooler and head gasket"
+   },
+   "fuel_plan": {
+    "tasks": [],
+    "litres_planned": 0,
+    "co2_kg": 0,
+    "runs_out_at": null,
+    "refuel_before": null,
+    "fuel_left_end_l": 240
+   },
+   "behaviour": {
+    "unusual": false,
+    "score": 0.536,
+    "reasons": []
+   }
+  },
+  {
+   "id": "DT-07",
+   "make": "Cat",
+   "model": "725",
+   "kind": "Dumper",
+   "operator": "Imran Khan (OP1024)",
+   "zone": "Haul road",
+   "x": 30,
+   "y": 70,
+   "hours": 3380.9,
+   "tank_l": 400,
+   "fuel_l": 196,
+   "working_h": 7.6,
+   "service_due_h": 90,
+   "cycles": 19,
+   "payload_t": 437,
+   "seatbelt_violations": 0,
+   "faults": [],
+   "idle_min": 60,
+   "idle_waste_min": 9,
+   "idle_by_reason": {
+    "waiting_for_truck": 0,
+    "heat_rest": 40,
+    "warm_up": 6,
+    "cool_down": 5,
+    "waste": 9
+   },
+   "fuel_pct": 49,
+   "health": {
+    "risk_pct": 5,
+    "level": "low",
+    "reasons": [],
+    "component": null,
+    "action": "No action needed. Normal walkaround."
+   },
+   "fuel_plan": {
+    "tasks": [],
+    "litres_planned": 0,
+    "co2_kg": 0,
+    "runs_out_at": null,
+    "refuel_before": null,
+    "fuel_left_end_l": 196
+   },
+   "behaviour": {
+    "unusual": false,
+    "score": 0.537,
+    "reasons": []
+   }
+  },
+  {
+   "id": "BHL-11",
+   "make": "JCB",
+   "model": "3DX",
+   "kind": "Backhoe loader (rental, mixed fleet)",
+   "operator": "Deepak (OP1031)",
+   "zone": "A",
+   "x": 12,
+   "y": 50,
+   "hours": 8930.0,
+   "tank_l": 120,
+   "fuel_l": 41,
+   "working_h": 4.2,
+   "service_due_h": -35,
+   "cycles": 96,
+   "payload_t": 0,
+   "seatbelt_violations": 4,
+   "faults": [
+    {
+     "code": "SVC",
+     "severity": "medium",
+     "text": "Oil change 85 h overdue"
+    }
+   ],
+   "idle_min": 163,
+   "idle_waste_min": 88,
+   "idle_by_reason": {
+    "waiting_for_truck": 20,
+    "heat_rest": 40,
+    "warm_up": 12,
+    "cool_down": 3,
+    "waste": 88
+   },
+   "fuel_pct": 34,
+   "health": {
+    "risk_pct": 82,
+    "level": "high",
+    "reasons": [
+     {
+      "factor": "Hours since oil change",
+      "value": "585 h",
+      "usual": "250",
+      "points": 61,
+      "component": "Engine oil",
+      "action": "Oil change overdue: book service"
+     },
+     {
+      "factor": "Soot in oil",
+      "value": "2.1 %",
+      "usual": "0.7",
+      "points": 36,
+      "component": "Engine oil",
+      "action": "Oil change overdue: book service"
+     }
+    ],
+    "component": "Engine oil",
+    "action": "Oil change overdue: book service"
+   },
+   "fuel_plan": {
+    "tasks": [
+     {
+      "title": "Trenching",
+      "start": "13:40",
+      "end": "14:30",
+      "lph": 19.5,
+      "litres": 16.1,
+      "fuel_left_l": 24.1
+     }
+    ],
+    "litres_planned": 16.9,
+    "co2_kg": 45,
+    "runs_out_at": null,
+    "refuel_before": null,
+    "fuel_left_end_l": 24.1
+   },
+   "behaviour": {
+    "unusual": true,
+    "score": 0.735,
+    "reasons": [
+     "Idle 58 min with only 1 load cycles (usual 18 min)",
+     "Seatbelt off for 41 min while engine running"
+    ]
+   }
+  }
+ ],
+ "alerts": [
+  {
+   "level": "high",
+   "machine": "EXC001",
+   "text": "Fuel runs out ~15:12. Send bowser before T103 Grade shoulder"
+  },
+  {
+   "level": "high",
+   "machine": "WHL002",
+   "text": "79% failure risk in 50 h: Clean hydraulic oil cooler, check oil level"
+  },
+  {
+   "level": "high",
+   "machine": "WHL002",
+   "text": "E0600-2 Hydraulic oil temperature high"
+  },
+  {
+   "level": "high",
+   "machine": "DT-03",
+   "text": "88% failure risk in 50 h: Coolant may be leaking into oil: check oil cooler and head gasket"
+  },
+  {
+   "level": "high",
+   "machine": "DT-03",
+   "text": "E0361-2 Coolant temperature high"
+  },
+  {
+   "level": "high",
+   "machine": "BHL-11",
+   "text": "82% failure risk in 50 h: Oil change overdue: book service"
+  },
+  {
+   "level": "medium",
+   "machine": "EXC001",
+   "text": "Health watch (45%): Check air filter and intake hoses: dust is getting into the engine"
+  },
+  {
+   "level": "medium",
+   "machine": "EXC001",
+   "text": "Unusual hour: Idle 55 min with only 2 load cycles (usual 18 min); Seatbelt off for 30 min while engine running"
+  },
+  {
+   "level": "medium",
+   "machine": "WHL002",
+   "text": "Unusual hour: 7 harsh swings this hour (usual 1); Travelling with bucket raised"
+  },
+  {
+   "level": "medium",
+   "machine": "WHL002",
+   "text": "E0600-1 Hydraulic oil temperature warning"
+  },
+  {
+   "level": "medium",
+   "machine": "BHL-11",
+   "text": "Unusual hour: Idle 58 min with only 1 load cycles (usual 18 min); Seatbelt off for 41 min while engine running"
+  },
+  {
+   "level": "medium",
+   "machine": "BHL-11",
+   "text": "Service 35 h overdue"
+  },
+  {
+   "level": "medium",
+   "machine": "BHL-11",
+   "text": "SVC Oil change 85 h overdue"
+  },
+  {
+   "level": "low",
+   "machine": "EXC001",
+   "text": "E0171-1 Air filter restriction, early"
+  }
+ ],
+ "alerts_pushed": 6,
+ "official_rows": [
+  {
+   "time": "2025-05-01 08:00",
+   "fuel_l": 5.2,
+   "load_cycles": 12,
+   "idle_min": 30,
+   "seatbelt": "Fastened",
+   "alert": "No",
+   "unusual": false,
+   "score": 0.402,
+   "reasons": []
+  },
+  {
+   "time": "2025-05-01 10:00",
+   "fuel_l": 3.8,
+   "load_cycles": 2,
+   "idle_min": 55,
+   "seatbelt": "Unfastened",
+   "alert": "Yes",
+   "unusual": true,
+   "score": 0.676,
+   "reasons": [
+    "Idle 55 min with only 2 load cycles (usual 18 min)",
+    "Seatbelt off for 30 min while engine running"
+   ]
+  },
+  {
+   "time": "2025-05-01 14:00",
+   "fuel_l": 6.1,
+   "load_cycles": 10,
+   "idle_min": 15,
+   "seatbelt": "Fastened",
+   "alert": "No",
+   "unusual": false,
+   "score": 0.361,
+   "reasons": []
+  },
+  {
+   "time": "2025-05-02 09:00",
+   "fuel_l": 2.0,
+   "load_cycles": 1,
+   "idle_min": 60,
+   "seatbelt": "Unfastened",
+   "alert": "Yes",
+   "unusual": true,
+   "score": 0.711,
+   "reasons": [
+    "Idle 60 min with only 1 load cycles (usual 18 min)",
+    "Seatbelt off for 30 min while engine running"
+   ]
+  }
+ ]
+}
