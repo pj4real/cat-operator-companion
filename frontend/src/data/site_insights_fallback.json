@@ -1,0 +1,967 @@
+{
+ "13:30": {
+  "now": "13:30",
+  "insights": [
+   {
+    "id": "critical-now:EXC001+BHL-11",
+    "rule": "critical-now",
+    "kind": "act_now",
+    "title": "Radio Ravi and Deepak now: belt on before restarting",
+    "why": "EXC001: Seatbelt off 30 min during a 55-min idle: restart without a belt is likely; BHL-11: Seatbelt off 41 min during a 58-min idle: restart without a belt is likely. Work restarts at 13:40",
+    "when": "13:30",
+    "at_min": 810,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Seatbelt and idle telemetry"
+     },
+     {
+      "kind": "model",
+      "label": "Fused risk state"
+     },
+     {
+      "kind": "history",
+      "label": "Operator twins"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "EXC001",
+      "value": "Seatbelt off 30 min during a 55-min idle: restart without a belt is likely"
+     },
+     {
+      "label": "BHL-11",
+      "value": "Seatbelt off 41 min during a 58-min idle: restart without a belt is likely"
+     }
+    ],
+    "action": {
+     "label": "Mark radioed",
+     "type": "ack"
+    },
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [
+     "EXC001",
+     "BHL-11"
+    ],
+    "people": [
+     "OP1001",
+     "OP1031"
+    ],
+    "impact": "A restart without a belt, the pattern behind the brief's safety alerts",
+    "delay": 1.3,
+    "sticky": false,
+    "score": 188.5
+   },
+   {
+    "id": "pull-machine:DT-03",
+    "rule": "pull-machine",
+    "kind": "act_now",
+    "title": "Pull DT-03 before the afternoon haul",
+    "why": "88% failure risk: Water in oil 0.42 % (usual 0.04), and fault E0361-2 (coolant temperature high) is active",
+    "when": "13:30",
+    "at_min": 810,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     },
+     {
+      "kind": "machine",
+      "label": "Fault codes"
+     },
+     {
+      "kind": "plan",
+      "label": "Dumper assignments"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Failure risk, 50 h",
+      "value": "88%"
+     },
+     {
+      "label": "Water in oil",
+      "value": "0.42 % (usual 0.04)"
+     }
+    ],
+    "action": {
+     "label": "Assign mechanic",
+     "type": "assign"
+    },
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "mechanic",
+    "machines": [
+     "DT-03",
+     "EXC001",
+     "WHL002"
+    ],
+    "people": [],
+    "impact": "Truck gap at EXC001, WHL002 goes from ~6 to ~12 min",
+    "delay": 1.2,
+    "sticky": false,
+    "score": 156.0
+   },
+   {
+    "id": "behaviour-wear:WHL002",
+    "rule": "behaviour-wear",
+    "kind": "act_now",
+    "title": "Check the WHL002 hydraulic cooler now, during the heat rest, and coach Anil on smooth loading",
+    "why": "Hydraulic oil peak 96 °C and 79% failure risk, and Anil had 7 harsh swings and raised-bucket travel this hour: the way it is being driven is heating the hydraulics",
+    "when": "13:30",
+    "at_min": 810,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     },
+     {
+      "kind": "model",
+      "label": "Behaviour model"
+     },
+     {
+      "kind": "history",
+      "label": "Anil's twin"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Hydraulic oil peak",
+      "value": "96 °C (usual 79)"
+     },
+     {
+      "label": "Harsh swings this hour",
+      "value": "7"
+     },
+     {
+      "label": "Fault codes",
+      "value": "E0600-2, E0600-1"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor + mechanic",
+    "machines": [
+     "WHL002"
+    ],
+    "people": [
+     "OP1012"
+    ],
+    "impact": "WHL002 risk stays at 79% while the cause continues",
+    "delay": 1.0,
+    "sticky": false,
+    "score": 115.0
+   },
+   {
+    "id": "bowser-run:EXC001+BHL-11",
+    "rule": "bowser-run",
+    "kind": "act_now",
+    "title": "Bowser: EXC001, then BHL-11, during the heat rest",
+    "why": "EXC001 hits reserve ~15:12, before its grading at 14:30; the site is parked until 13:40; BHL-11 is at 34% on the same route. One run instead of 2",
+    "when": "13:30",
+    "at_min": 810,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Fuel-rate model"
+     },
+     {
+      "kind": "model",
+      "label": "Task-time model"
+     },
+     {
+      "kind": "machine",
+      "label": "Fuel levels"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "EXC001",
+      "value": "reserve ~15:12"
+     },
+     {
+      "label": "BHL-11",
+      "value": "34% full"
+     }
+    ],
+    "action": {
+     "label": "Assign bowser",
+     "type": "assign"
+    },
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "bowser driver",
+    "machines": [
+     "EXC001",
+     "BHL-11"
+    ],
+    "people": [],
+    "impact": "EXC001 stops ~15:12",
+    "delay": 1.0,
+    "sticky": false,
+    "score": 115.0
+   },
+   {
+    "id": "well-done:OP1007",
+    "rule": "well-done",
+    "kind": "well_done",
+    "title": "Thank Suresh (EXC004)",
+    "why": "0 belt violations, 12 min avoidable idle, 5% machine risk. Strongest at material loading: 17 cycles/h (site average for excavators: 13/h)",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Today's telemetry"
+     },
+     {
+      "kind": "history",
+      "label": "Suresh's twin"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [],
+    "people": [
+     "OP1007"
+    ],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 20.0
+   }
+  ],
+  "more": [
+   {
+    "id": "rental-call:BHL-11",
+    "rule": "rental-call",
+    "kind": "act_now",
+    "title": "Call the rental company about BHL-11: service or swap",
+    "why": "Service 35 h overdue and 82% failure risk (engine oil); it has trenching at 13:40. It is a rental, so the fix is a call, not our workshop",
+    "when": "13:30",
+    "at_min": 810,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     },
+     {
+      "kind": "machine",
+      "label": "Service counter"
+     },
+     {
+      "kind": "site",
+      "label": "Rental contract"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Service",
+      "value": "-35 h"
+     },
+     {
+      "label": "Failure risk, 50 h",
+      "value": "82%"
+     }
+    ],
+    "action": {
+     "label": "Mark called",
+     "type": "ack"
+    },
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [
+     "BHL-11"
+    ],
+    "people": [],
+    "impact": "BHL-11 may fail mid-task",
+    "delay": 1.1,
+    "sticky": false,
+    "score": 110.0
+   },
+   {
+    "id": "schedule-slip:site",
+    "rule": "schedule-slip",
+    "kind": "heads_up",
+    "title": "Afternoon runs ~78 min over: move BHL-11's trenching to tomorrow morning",
+    "why": "4 tasks run over plan by ~78 min in total (4 of them in the 13:00–15:00 rain). BHL-11's trenching is the biggest: ~56 min vs 30 planned",
+    "when": "13:30",
+    "at_min": 810,
+    "sources": [
+     {
+      "kind": "weather",
+      "label": "Forecast"
+     },
+     {
+      "kind": "model",
+      "label": "Task-time model"
+     },
+     {
+      "kind": "plan",
+      "label": "Afternoon tasks"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "EXC004 earth excavation",
+      "value": "+31 min"
+     },
+     {
+      "label": "BHL-11 trenching",
+      "value": "+26 min"
+     },
+     {
+      "label": "EXC001 grading",
+      "value": "+11 min"
+     },
+     {
+      "label": "WHL002 material loading",
+      "value": "+10 min"
+     }
+    ],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [
+     "BHL-11",
+     "EXC001",
+     "EXC004",
+     "WHL002"
+    ],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 78.3
+   },
+   {
+    "id": "truck-rebalance:DT-03",
+    "rule": "truck-rebalance",
+    "kind": "plan_ahead",
+    "title": "Send DT-07 to WHL002 first",
+    "why": "With DT-03 out, DT-07 is the only dumper left. WHL002 has material loading at 13:40; EXC001 is grading and needs no trucks",
+    "when": "13:30",
+    "at_min": 810,
+    "sources": [
+     {
+      "kind": "plan",
+      "label": "Dumper assignments"
+     },
+     {
+      "kind": "plan",
+      "label": "Afternoon tasks"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [
+     "DT-07",
+     "WHL002"
+    ],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 72.4
+   },
+   {
+    "id": "targeted-talk:belt",
+    "rule": "targeted-talk",
+    "kind": "plan_ahead",
+    "title": "5-minute belt talk with Deepak and Ravi only",
+    "why": "They account for 6 of today's 7 belt violations. Ravi's belt-off time is 3.0× higher in rain, and it rains until 15:00. A site-wide talk would miss the point",
+    "when": "14:00",
+    "at_min": 840,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Seatbelt telemetry"
+     },
+     {
+      "kind": "history",
+      "label": "Operator twins"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Deepak",
+      "value": "4 violations"
+     },
+     {
+      "label": "Ravi Kumar",
+      "value": "2 violations"
+     },
+     {
+      "label": "Anil Yadav",
+      "value": "1 violations"
+     }
+    ],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [],
+    "people": [
+     "OP1031",
+     "OP1001"
+    ],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 72.4
+   },
+   {
+    "id": "zone-spotter:B",
+    "rule": "zone-spotter",
+    "kind": "heads_up",
+    "title": "Put a spotter in Zone B while EXC001 works there",
+    "why": "Fibre line at 1.2 m; 2 new workers (day 3)",
+    "when": "13:30",
+    "at_min": 810,
+    "sources": [
+     {
+      "kind": "site",
+      "label": "Site hazards"
+     },
+     {
+      "kind": "site",
+      "label": "New workers list"
+     },
+     {
+      "kind": "plan",
+      "label": "Machine positions"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.85,
+    "task_id": null,
+    "zone": "B",
+    "owner": "safety officer",
+    "machines": [
+     "EXC001"
+    ],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 51.0
+   },
+   {
+    "id": "mentor-pair:OP1031",
+    "rule": "mentor-pair",
+    "kind": "plan_ahead",
+    "title": "Pair Deepak with Suresh for tomorrow's trenching",
+    "why": "Deepak: 4 belt violations and 88 min avoidable idle today. Suresh (EXC004): 0 violations, 12 min avoidable idle",
+    "when": "19:00",
+    "at_min": 1140,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Today's telemetry"
+     },
+     {
+      "kind": "history",
+      "label": "Operator twins"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [],
+    "people": [
+     "OP1031",
+     "OP1007"
+    ],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 45.1
+   },
+   {
+    "id": "service-tonight:site",
+    "rule": "service-tonight",
+    "kind": "plan_ahead",
+    "title": "Tonight's workshop list: EXC001",
+    "why": "EXC001: service due in 12 h and check air filter and intake hoses. Do it after the shift, not mid-task",
+    "when": "19:00",
+    "at_min": 1140,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Service counters"
+     },
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": "mechanic",
+    "machines": [
+     "EXC001"
+    ],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 39.2
+   }
+  ],
+  "status": {
+   "level": "critical",
+   "text": "4 machines need action · critical: EXC001, BHL-11 · afternoon ~78 min over plan",
+   "critical": [
+    "EXC001",
+    "BHL-11"
+   ],
+   "machines": [
+    "BHL-11",
+    "DT-03",
+    "EXC001",
+    "WHL002"
+   ]
+  }
+ },
+ "15:30": {
+  "now": "15:30",
+  "insights": [
+   {
+    "id": "critical-now:EXC001+BHL-11",
+    "rule": "critical-now",
+    "kind": "act_now",
+    "title": "Radio Ravi and Deepak now: belt on before restarting",
+    "why": "EXC001: Seatbelt off 30 min during a 55-min idle: restart without a belt is likely; BHL-11: Seatbelt off 41 min during a 58-min idle: restart without a belt is likely",
+    "when": "15:30",
+    "at_min": 930,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Seatbelt and idle telemetry"
+     },
+     {
+      "kind": "model",
+      "label": "Fused risk state"
+     },
+     {
+      "kind": "history",
+      "label": "Operator twins"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "EXC001",
+      "value": "Seatbelt off 30 min during a 55-min idle: restart without a belt is likely"
+     },
+     {
+      "label": "BHL-11",
+      "value": "Seatbelt off 41 min during a 58-min idle: restart without a belt is likely"
+     }
+    ],
+    "action": {
+     "label": "Mark radioed",
+     "type": "ack"
+    },
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [
+     "EXC001",
+     "BHL-11"
+    ],
+    "people": [
+     "OP1001",
+     "OP1031"
+    ],
+    "impact": "A restart without a belt, the pattern behind the brief's safety alerts",
+    "delay": 1.3,
+    "sticky": false,
+    "score": 188.5
+   },
+   {
+    "id": "pull-machine:DT-03",
+    "rule": "pull-machine",
+    "kind": "act_now",
+    "title": "Pull DT-03 before the afternoon haul",
+    "why": "88% failure risk: Water in oil 0.42 % (usual 0.04), and fault E0361-2 (coolant temperature high) is active",
+    "when": "15:30",
+    "at_min": 930,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     },
+     {
+      "kind": "machine",
+      "label": "Fault codes"
+     },
+     {
+      "kind": "plan",
+      "label": "Dumper assignments"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Failure risk, 50 h",
+      "value": "88%"
+     },
+     {
+      "label": "Water in oil",
+      "value": "0.42 % (usual 0.04)"
+     }
+    ],
+    "action": {
+     "label": "Assign mechanic",
+     "type": "assign"
+    },
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "mechanic",
+    "machines": [
+     "DT-03",
+     "EXC001",
+     "WHL002"
+    ],
+    "people": [],
+    "impact": "Truck gap at EXC001, WHL002 goes from ~6 to ~12 min",
+    "delay": 1.2,
+    "sticky": false,
+    "score": 156.0
+   },
+   {
+    "id": "behaviour-wear:WHL002",
+    "rule": "behaviour-wear",
+    "kind": "act_now",
+    "title": "Check the WHL002 hydraulic cooler at the next break, and coach Anil on smooth loading",
+    "why": "Hydraulic oil peak 96 °C and 79% failure risk, and Anil had 7 harsh swings and raised-bucket travel this hour: the way it is being driven is heating the hydraulics",
+    "when": "15:30",
+    "at_min": 930,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     },
+     {
+      "kind": "model",
+      "label": "Behaviour model"
+     },
+     {
+      "kind": "history",
+      "label": "Anil's twin"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Hydraulic oil peak",
+      "value": "96 °C (usual 79)"
+     },
+     {
+      "label": "Harsh swings this hour",
+      "value": "7"
+     },
+     {
+      "label": "Fault codes",
+      "value": "E0600-2, E0600-1"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor + mechanic",
+    "machines": [
+     "WHL002"
+    ],
+    "people": [
+     "OP1012"
+    ],
+    "impact": "WHL002 risk stays at 79% while the cause continues",
+    "delay": 1.0,
+    "sticky": false,
+    "score": 115.0
+   },
+   {
+    "id": "rental-call:BHL-11",
+    "rule": "rental-call",
+    "kind": "act_now",
+    "title": "Call the rental company about BHL-11: service or swap",
+    "why": "Service 35 h overdue and 82% failure risk (engine oil). It is a rental, so the fix is a call, not our workshop",
+    "when": "15:30",
+    "at_min": 930,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     },
+     {
+      "kind": "machine",
+      "label": "Service counter"
+     },
+     {
+      "kind": "site",
+      "label": "Rental contract"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Service",
+      "value": "-35 h"
+     },
+     {
+      "label": "Failure risk, 50 h",
+      "value": "82%"
+     }
+    ],
+    "action": {
+     "label": "Mark called",
+     "type": "ack"
+    },
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [
+     "BHL-11"
+    ],
+    "people": [],
+    "impact": "BHL-11 may fail mid-task",
+    "delay": 1.1,
+    "sticky": false,
+    "score": 110.0
+   },
+   {
+    "id": "well-done:OP1007",
+    "rule": "well-done",
+    "kind": "well_done",
+    "title": "Thank Suresh (EXC004)",
+    "why": "0 belt violations, 12 min avoidable idle, 5% machine risk. Strongest at material loading: 17 cycles/h (site average for excavators: 13/h)",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Today's telemetry"
+     },
+     {
+      "kind": "history",
+      "label": "Suresh's twin"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [],
+    "people": [
+     "OP1007"
+    ],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 20.0
+   }
+  ],
+  "more": [
+   {
+    "id": "targeted-talk:belt",
+    "rule": "targeted-talk",
+    "kind": "plan_ahead",
+    "title": "5-minute belt talk with Deepak and Ravi only",
+    "why": "They account for 6 of today's 7 belt violations. A site-wide talk would miss the point",
+    "when": "16:00",
+    "at_min": 960,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Seatbelt telemetry"
+     },
+     {
+      "kind": "history",
+      "label": "Operator twins"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Deepak",
+      "value": "4 violations"
+     },
+     {
+      "label": "Ravi Kumar",
+      "value": "2 violations"
+     },
+     {
+      "label": "Anil Yadav",
+      "value": "1 violations"
+     }
+    ],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [],
+    "people": [
+     "OP1031",
+     "OP1001"
+    ],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 72.4
+   },
+   {
+    "id": "zone-spotter:B",
+    "rule": "zone-spotter",
+    "kind": "heads_up",
+    "title": "Put a spotter in Zone B while EXC001 works there",
+    "why": "Fibre line at 1.2 m; 2 new workers (day 3)",
+    "when": "15:30",
+    "at_min": 930,
+    "sources": [
+     {
+      "kind": "site",
+      "label": "Site hazards"
+     },
+     {
+      "kind": "site",
+      "label": "New workers list"
+     },
+     {
+      "kind": "plan",
+      "label": "Machine positions"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.85,
+    "task_id": null,
+    "zone": "B",
+    "owner": "safety officer",
+    "machines": [
+     "EXC001"
+    ],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 51.0
+   },
+   {
+    "id": "mentor-pair:OP1031",
+    "rule": "mentor-pair",
+    "kind": "plan_ahead",
+    "title": "Pair Deepak with Suresh for tomorrow's work",
+    "why": "Deepak: 4 belt violations and 88 min avoidable idle today. Suresh (EXC004): 0 violations, 12 min avoidable idle",
+    "when": "19:00",
+    "at_min": 1140,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Today's telemetry"
+     },
+     {
+      "kind": "history",
+      "label": "Operator twins"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": "supervisor",
+    "machines": [],
+    "people": [
+     "OP1031",
+     "OP1007"
+    ],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 45.1
+   },
+   {
+    "id": "service-tonight:site",
+    "rule": "service-tonight",
+    "kind": "plan_ahead",
+    "title": "Tonight's workshop list: EXC001",
+    "why": "EXC001: service due in 12 h and check air filter and intake hoses. Do it after the shift, not mid-task",
+    "when": "19:00",
+    "at_min": 1140,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Service counters"
+     },
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": "mechanic",
+    "machines": [
+     "EXC001"
+    ],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 39.2
+   }
+  ],
+  "status": {
+   "level": "critical",
+   "text": "4 machines need action · critical: EXC001, BHL-11",
+   "critical": [
+    "EXC001",
+    "BHL-11"
+   ],
+   "machines": [
+    "BHL-11",
+    "DT-03",
+    "EXC001",
+    "WHL002"
+   ]
+  }
+ }
+}

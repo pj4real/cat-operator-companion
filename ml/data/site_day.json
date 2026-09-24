@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-23",
+  "site": "NH-48 widening, Sriperumbudur",
+  "shift_start": "07:00",
+  "shift_end": "19:00",
+  "forecast": [
+    { "from": "07:00", "to": "13:00", "weather": "Cloudy", "temp_c": 33 },
+    { "from": "13:00", "to": "15:00", "weather": "Rainy", "temp_c": 29 },
+    { "from": "15:00", "to": "19:00", "weather": "Sunny", "temp_c": 38 }
+  ],
+  "heat_index_peak": { "at": "14:00", "value": 41 },
+  "idle_windows": [
+    { "from": "13:00", "to": "13:40", "reason": "heat_rest", "label": "heat rest", "place": "Bay 1" }
+  ],
+  "site_hazards": [
+    { "id": "fibre", "type": "buried_utility", "zone": "B", "detail": "fibre line at 1.2 m", "limit": "depth limit 0.9 m is set" },
+    { "id": "11kv", "type": "overhead_line", "zone": "Haul road", "detail": "11 kV line over the haul road", "limit": "boom under 6 m near the poles" },
+    { "id": "newbies", "type": "new_workers", "zone": "B", "detail": "2 new workers (day 3)", "limit": "new workers wear a green ring on the map" }
+  ],
+  "truck_gap_min": 6,
+  "bowser": { "at": "Bay 1", "fill_lpm": 60, "drive_min_per_zone": 4 },
+  "yesterday_events": [
+    { "time": "10:00", "zone": "A", "place": "Bay 2", "operator_id": "OP1001", "machine": "EXC001", "type": "near_miss", "text": "near-miss with a reversing dumper" },
+    { "time": "10:35", "zone": "B", "place": "Zone B", "operator_id": "OP1001", "machine": "EXC001", "type": "belt_restart", "text": "restarted after a long idle with the belt off" },
+    { "time": "15:10", "zone": "A", "place": "Bay 2", "operator_id": "OP1001", "machine": "EXC001", "type": "raised_bucket", "text": "travelled on a slope with the bucket raised" },
+    { "time": "11:20", "zone": "A", "place": "Zone A", "operator_id": "OP1031", "machine": "BHL-11", "type": "belt_restart", "text": "belt off for 40 min during an idle" }
+  ]
+}

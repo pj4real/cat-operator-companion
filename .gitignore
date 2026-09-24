@@ -6,3 +6,5 @@ __pycache__/
 .DS_Store
 ml/models/*.joblib
 .claude/
+ml/data/inbox.jsonl
+ml/data/feedback.jsonl

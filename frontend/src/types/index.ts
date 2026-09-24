@@ -170,3 +170,39 @@ export interface FleetData {
   official_rows: OfficialRow[]
   live?: boolean
 }
+
+// ---- Shift Copilot / Site Copilot (ml/insights.py)
+export type InsightKind = 'act_now' | 'plan_ahead' | 'heads_up' | 'habit' | 'well_done'
+export type InsightSourceKind = 'model' | 'plan' | 'weather' | 'history' | 'site' | 'machine' | 'supervisor' | 'operator'
+export type InsightActionType = 'refuel_stop' | 'notify_supervisor' | 'play_voice' | 'open_lesson' | 'open_task' | 'assign' | 'ack'
+
+export interface Insight {
+  id: string
+  rule: string
+  kind: InsightKind
+  title: string
+  why: string
+  when: string | null
+  at_min: number | null
+  sources: { kind: InsightSourceKind; label: string }[]
+  evidence: { label: string; value: string }[]
+  action: { label: string; type: InsightActionType } | null
+  confidence: number
+  score: number
+  task_id: string | null
+  zone: string | null
+  /** site items: who should do it */
+  owner: string | null
+  machines: string[]
+  people: string[]
+  /** site items: what happens if nobody acts */
+  impact: string | null
+  /** set when another person sent it */
+  from?: string
+}
+
+export interface InsightsResponse { now: string; insights: Insight[]; more: Insight[]; live?: boolean }
+export interface SiteInsightsResponse extends InsightsResponse {
+  status: { level: RiskLevel3; text: string; critical: string[]; machines: string[] }
+}
+export type InsightState = 'done' | 'dismissed' | 'assigned' | 'sent'

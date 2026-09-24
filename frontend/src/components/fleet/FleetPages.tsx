@@ -4,6 +4,8 @@ import { useApp } from '@/store/app'
 import { cn, inr } from '@/lib/utils'
 import type { FleetData, FleetMachine, RiskLevel3 } from '@/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
+import { Disclosure } from '@/components/ui/disclosure'
+import { SiteCopilot } from './SiteCopilot'
 import { Kpi } from '@/components/ui/kpi'
 import { EmptyState } from '@/components/ui/controls'
 import { MachineThumb } from '@/components/ui/machine-thumb'
@@ -41,7 +43,7 @@ function IdleLegend() {
 }
 
 function MachinesTable({ data }: { data: FleetData }) {
-  const { selectedMachine, selectMachine } = useApp()
+  const { selectedMachine, selectMachine, highlight } = useApp()
   return (
     <div className="max-h-[520px] overflow-auto scrollbar-thin rounded-md border border-border">
       <table className="w-full min-w-[900px] text-left text-sm">
@@ -60,9 +62,11 @@ function MachinesTable({ data }: { data: FleetData }) {
         <tbody>
           {data.machines.map((m) => {
             const on = selectedMachine === m.id
+            const named = highlight.includes(m.id)
             return (
               <tr key={m.id} onClick={() => selectMachine(m.id)} aria-selected={on}
-                className={cn('cursor-pointer border-t border-border transition-colors', on ? 'bg-brand-soft/70' : 'hover:bg-surface-2')}>
+                className={cn('cursor-pointer border-t border-border transition-colors', on ? 'bg-brand-soft/70' : named ? 'bg-brand-soft/35' : 'hover:bg-surface-2',
+                  named && 'shadow-[inset_4px_0_0_var(--brand)]')}>
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-3">
                     <MachineThumb kind={m.kind} size="sm" />
@@ -188,7 +192,7 @@ function MachineDetail({ m }: { m: FleetMachine }) {
 }
 
 function FleetMap({ data }: { data: FleetData }) {
-  const { selectedMachine, selectMachine } = useApp()
+  const { selectedMachine, selectMachine, highlight } = useApp()
   const DOT: Record<string, string> = { high: 'var(--critical)', watch: 'var(--warning)', low: 'var(--good)' }
   return (
     <svg viewBox="0 0 100 90" className="w-full rounded-md border border-border bg-surface-2" role="img" aria-label="Site map with machine positions coloured by health risk">
@@ -209,6 +213,7 @@ function FleetMap({ data }: { data: FleetData }) {
       {data.machines.map((m) => (
         <g key={m.id} onClick={() => selectMachine(m.id)} className="cursor-pointer" role="button" aria-label={`Select ${m.id}`}>
           <circle cx={m.x} cy={m.y} r="6" fill="transparent" />
+          {highlight.includes(m.id) && <circle cx={m.x} cy={m.y} r="5.6" fill="none" stroke="var(--brand)" strokeWidth=".9" strokeDasharray="1.4 .9" />}
           {selectedMachine === m.id && <circle cx={m.x} cy={m.y} r="4.4" fill="none" stroke="var(--fg)" strokeWidth=".6" />}
           <circle cx={m.x} cy={m.y} r="2.5" fill={DOT[m.health.level]} stroke="var(--surface)" strokeWidth=".6" />
           <text x={m.x + 3.6} y={m.y + 1} fontSize="2.6" fill="var(--fg)" fontFamily="var(--font-mono)" fontWeight="500">{m.id}</text>
@@ -220,7 +225,7 @@ function FleetMap({ data }: { data: FleetData }) {
 
 export function FleetOverviewPage() {
   const { data } = useFleet()
-  const selectedMachine = useApp((s) => s.selectedMachine)
+  const { selectedMachine, siteDetailsOpen, setSiteDetailsOpen } = useApp()
   if (!data) return null
   const k = data.kpis
   const sel = data.machines.find((m) => m.id === selectedMachine) ?? data.machines[0]
@@ -237,48 +242,54 @@ export function FleetOverviewPage() {
           <ModelStatus live={data.live} />
         </>} />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi icon={Gauge} label="Utilization" value={k.utilization_pct} unit="%" sub={`${k.cycles} load cycles today`} />
-        <Kpi icon={Timer} label="Idle" value={k.idle_pct} unit="%" sub={`${k.idle_justified_pct}% had a reason · ${k.idle_waste_h} h waste`} outcome="Excessive idling" />
-        <Kpi icon={Fuel} label="Fuel today · est." value={k.fuel_used_l} unit="L" sub={`≈ ${k.co2_kg.toLocaleString('en-IN')} kg CO₂ · ${inr(k.fuel_used_l * 90)}`} />
-        <Kpi icon={CircleDot} label="Seatbelt violations" value={k.seatbelt_violations} valueClassName={k.seatbelt_violations ? 'text-serious-text' : undefined}
-          sub="engine running, belt off" outcome="Seatbelt compliance" />
-      </div>
+      <SiteCopilot />
 
-      <Card className="min-w-0">
-        <CardHeader icon={TableProperties} title="Machines" description="Select a row for the reason behind each number" outcomes={['Identify unusual behaviour in machine usage']} />
-        <CardBody className="space-y-3">
-          <MachinesTable data={data} />
-          <IdleLegend />
-        </CardBody>
-      </Card>
+      <div id="site-details" className="scroll-mt-4">
+        <Disclosure title="Site details" hint="KPIs, machines, map and every alert" open={siteDetailsOpen} onOpenChange={setSiteDetailsOpen}>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Kpi icon={Gauge} label="Utilization" value={k.utilization_pct} unit="%" sub={`${k.cycles} load cycles today`} />
+            <Kpi icon={Timer} label="Idle" value={k.idle_pct} unit="%" sub={`${k.idle_justified_pct}% had a reason · ${k.idle_waste_h} h waste`} outcome="Excessive idling" />
+            <Kpi icon={Fuel} label="Fuel today · est." value={k.fuel_used_l} unit="L" sub={`≈ ${k.co2_kg.toLocaleString('en-IN')} kg CO₂ · ${inr(k.fuel_used_l * 90)}`} />
+            <Kpi icon={CircleDot} label="Seatbelt violations" value={k.seatbelt_violations} valueClassName={k.seatbelt_violations ? 'text-serious-text' : undefined}
+              sub="engine running, belt off" outcome="Seatbelt compliance" />
+          </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
-        <Card>
-          <CardHeader icon={HeartPulse} title="Selected machine" />
-          <CardBody><MachineDetail m={sel} /></CardBody>
-        </Card>
-        <Card>
-          <CardHeader icon={MapIcon} title="Site map" description="Dot colour = health risk · select to inspect" outcomes={['Proximity hazards']} />
-          <CardBody><FleetMap data={data} /></CardBody>
-        </Card>
-        <Card id="alerts" className="lg:col-span-2 2xl:col-span-1">
-          <CardHeader icon={Bell} title="Alerts"
-            description={`Alert budget: ${data.alerts_pushed} of ${data.alerts.length} pushed to phones (high only). The rest wait here.`}
-            actions={highAlerts > 0 ? <StatusBadge tone="critical" size="sm">{highAlerts} high</StatusBadge> : undefined} />
-          <CardBody>
-            {data.alerts.length === 0 ? <EmptyState icon={Bell} title="No alerts">Nothing needs attention on site right now.</EmptyState> : (
-              <ul className="max-h-[520px] divide-y divide-border overflow-y-auto scrollbar-thin">
-                {data.alerts.map((a, i) => (
-                  <li key={i} className="flex gap-3 py-2.5 text-sm first:pt-0">
-                    <StatusBadge tone={ALERT_TONE[a.level]} size="sm" icon={TriangleAlert} className="w-[84px] shrink-0 justify-center capitalize">{a.level}</StatusBadge>
-                    <span className="min-w-0 text-fg-2"><b className="font-mono font-medium text-fg">{a.machine}</b> · {a.text}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
+          <Card className="min-w-0">
+            <CardHeader icon={TableProperties} title="Machines" description="Select a row for the reason behind each number" outcomes={['Identify unusual behaviour in machine usage']} />
+            <CardBody className="space-y-3">
+              <MachinesTable data={data} />
+              <IdleLegend />
+            </CardBody>
+          </Card>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
+            <Card>
+              <CardHeader icon={HeartPulse} title="Selected machine" />
+              <CardBody><MachineDetail m={sel} /></CardBody>
+            </Card>
+            <Card>
+              <CardHeader icon={MapIcon} title="Site map" description="Dot colour = health risk · select to inspect" outcomes={['Proximity hazards']} />
+              <CardBody><FleetMap data={data} /></CardBody>
+            </Card>
+            <Card id="alerts" className="lg:col-span-2 2xl:col-span-1">
+              <CardHeader icon={Bell} title="Alerts"
+                description={`Alert budget: ${data.alerts_pushed} of ${data.alerts.length} pushed to phones (high only). The rest wait here.`}
+                actions={highAlerts > 0 ? <StatusBadge tone="critical" size="sm">{highAlerts} high</StatusBadge> : undefined} />
+              <CardBody>
+                {data.alerts.length === 0 ? <EmptyState icon={Bell} title="No alerts">Nothing needs attention on site right now.</EmptyState> : (
+                  <ul className="max-h-[520px] divide-y divide-border overflow-y-auto scrollbar-thin">
+                    {data.alerts.map((a, i) => (
+                      <li key={i} className="flex gap-3 py-2.5 text-sm first:pt-0">
+                        <StatusBadge tone={ALERT_TONE[a.level]} size="sm" icon={TriangleAlert} className="w-[84px] shrink-0 justify-center capitalize">{a.level}</StatusBadge>
+                        <span className="min-w-0 text-fg-2"><b className="font-mono font-medium text-fg">{a.machine}</b> · {a.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+        </Disclosure>
       </div>
     </div>
   )

@@ -31,6 +31,9 @@ Demo scope: one operator (Ravi, OP1001) on one machine (Cat 320 excavator, EXC00
 | Unusual behaviour card while docked, per-hour rates from the sim | Unusual behaviour | Isolation forest + rules (`/score/behaviour`) |
 | End-of-shift summary: verified hours, idle split justified vs avoidable, events, new lessons | Operator training hub, unusual behaviour | handheld screen, from the sim |
 | Supervisor view: site KPIs, machine table, health and fuel predictions, site map, alert budget, official telemetry rows scored | All five | `fleet/FleetPages.tsx`, `GET /fleet` |
+| Shift Copilot: at most 5 ranked actions for the operator's day, each joining 2+ sources (plan, forecast, site hazards, health and fuel models, his twin, yesterday's events) | Daily task dashboard, safety features | `ml/insights.py`, `POST /insights`, `operator/ShiftCopilot.tsx` |
+| Site Copilot: at most 5 decisions for the supervisor, each with an owner and "if nobody acts", plus a one-line site status | All five | `ml/insights.py`, `GET /insights/site`, `fleet/SiteCopilot.tsx` |
+| Operator ↔ supervisor messages ("Tell supervisor", "Send to operator") and an in-cab "next best action" | Safety features, incident logging | `/inbox`, `lib/liveInsights.ts` |
 
 ## Run it
 
@@ -54,6 +57,15 @@ npm run dev                 # http://localhost:5173
 npm run check               # TypeScript + lint
 ```
 If the API is not running, the app still works and falls back to cached predictions.
+
+## Shift Copilot and Site Copilot, in plain words
+
+The dashboards show a lot of correct numbers; the Copilots turn them into a few actions. Each rule in `ml/insights.py` joins two or more sources and fires only when the combination says something no single card says, for example: tank hits reserve ~14:43 (fuel model) + T103 starts 14:30 (plan) + parked 13:00–13:40 anyway (heat rest) → "Refuel during the heat rest". Items are scored by how serious, how soon and how sure, capped at 5, and every item shows its sources and evidence ("Why this?"). The rules and models decide; no text is generated.
+
+- **Operator (12 rules):** walkaround item from machine health × today's dusty work, refuel slot, rain on a task, hazards in a task's zone, yesterday's near-miss where he works today, habits from his twin (belt and idle in rain, belt off after long idles, late-shift slump), joystick pattern, switch-off habit, service window, a "well done".
+- **Supervisor (13 rules):** critical belt risk now, pull a failing machine (and the knock-on truck gap), bowser run in one trip, rental call, operating style wearing a part, dumper rebalance, afternoon schedule slip, zone spotter, targeted belt talk, mentor pairing, tonight's workshop list, operators' messages, a "well done".
+- **Site facts** (forecast, breaks, hazards, yesterday's events) live in one file, `ml/data/site_day.json`, so the two screens never disagree. Demo clocks on both cards re-rank the lists (07:00 / 09:00 / 12:30 / 15:30 and 13:30 / 15:30).
+- **Self-check:** `cd ml && python insights.py` asserts the expected items at each demo time, the 5-item cap, the 2-source rule and a message each way.
 
 ## ML, in plain words
 
