@@ -12,11 +12,14 @@ import { SafetyPage } from '@/components/operator/SafetyPage'
 import { TrainingPage } from '@/components/operator/TrainingPage'
 import { ActivityPage } from '@/components/operator/ActivityPage'
 import { TwinPage } from '@/components/operator/TwinPage'
+import { WalkaroundPage } from '@/components/operator/WalkaroundPage'
 import { FleetOverviewPage, TelemetryAuditPage } from '@/components/fleet/FleetPages'
 import { DockTransition } from '@/components/docked/DockTransition'
 import { DockedMode } from '@/components/docked/DockedMode'
 import { StoryBar } from '@/components/shared/StoryBar'
 import { DeviceFrame, usePullBack } from '@/components/shared/DeviceFrame'
+import { StoryCard } from '@/components/shared/StoryCard'
+import { CHAPTERS } from '@/lib/story'
 import type { StoryContext } from '@/lib/story'
 
 // The voice briefing's three.js orb loads on demand. The docked display is imported normally:
@@ -45,6 +48,10 @@ function summarise(s: Sim): ShiftSummary {
     beltOffMin: s.seatbeltOffSec / 60,
     events: s.events.filter((e) => e.level !== 'ok'),
     lessons: shiftLessons(s),
+    // a copy, so the summary on Today stays fixed if Ravi docks again
+    timeline: s.timeline.map((it) => ({ ...it })),
+    engineOffWaitMin: s.engineOffWaitSec / 60,
+    alerts: { ...s.alerts },
   }
 }
 
@@ -54,14 +61,15 @@ const PAGES = {
   training: TrainingPage,
   activity: ActivityPage,
   twin: TwinPage,
+  walkaround: WalkaroundPage,
   overview: FleetOverviewPage,
   telemetry: TelemetryAuditPage,
 }
 
 export default function App() {
-  const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl } = useApp()
+  const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl, storyOn, storyIndex } = useApp()
   const sim = useRef<Sim>(createSim())
-  const { frame, storyOn, captionsOn, toggleFrame } = useApp()
+  const { frame, captionsOn, toggleFrame } = useApp()
   // count briefing endings: each one triggers the pull-back into the device
   const [pull, setPull] = useState(0)
   const wasIntro = useRef(false)
@@ -135,7 +143,7 @@ export default function App() {
   const finishBriefing = () => {
     setBriefingOpen(false)
     const st = useApp.getState()
-    if (st.storyOn && st.storyIndex === 0) st.setStory(true, 1)
+    if (st.storyOn && CHAPTERS[st.storyIndex]?.title === 'Morning briefing') st.setStory(true, st.storyIndex + 1)
   }
 
   const Page = PAGES[page]
@@ -145,12 +153,14 @@ export default function App() {
       : device === 'docked' ? <DockedMode sim={sim.current} onUndock={undock} />
         : intro ? <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={finishBriefing} /></Suspense>
           : <AppShell><Page /></AppShell>
+  const card = storyOn ? CHAPTERS[storyIndex]?.card : undefined
   const storyBar = <StoryBar ctx={story} hidden={intro} />
   // the briefing plays full-screen; when it ends, the app pulls back into the tablet
   if (intro) return <>{screen}{storyBar}</>
   return (
     <DeviceFrame enabled={frame} docked={device !== 'handheld'} cover={pullingBack}
-      bottomReserve={storyOn ? (captionsOn ? 130 : 76) : 24} overlay={storyBar}>
+      bottomReserve={storyOn ? (captionsOn ? 130 : 76) : 24}
+      overlay={<>{card && <StoryCard kind={card} />}{storyBar}</>}>
       {screen}
       <Toaster position="bottom-right" closeButton />
     </DeviceFrame>

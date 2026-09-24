@@ -39,7 +39,7 @@ export function StoryBar({ ctx, hidden }: { ctx: StoryContext; hidden?: boolean 
       {captionsOn && (
         <p key={storyIndex} className="max-w-3xl rounded-md bg-black/85 px-4 py-2 text-center text-[15px] leading-snug text-white shadow-3"
           style={{ animation: 'var(--animate-enter)' }}>
-          <span className="mr-2 font-mono text-xs text-[#ffcd11]">{ch.time}</span>{ch.caption}
+          {ch.time && <span className="mr-2 font-mono text-xs text-[#ffcd11]">{ch.time}</span>}{ch.caption}
         </p>
       )}
       <nav aria-label="Story chapters" className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-[#101216] p-1 text-white shadow-3">

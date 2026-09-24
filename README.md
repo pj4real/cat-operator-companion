@@ -18,9 +18,9 @@ Demo scope: one operator (Ravi, OP1001) on one machine (Cat 320 excavator, EXC00
 | 3D site: excavator dig/swing/dump cycle, dumpers arriving, workers, fibre line, 11 kV line | Proximity hazards, working conditions | react-three-fiber (`docked/SiteScene.jsx`) |
 | Swing radius watch: green, amber, red. Swing held when a person is inside. | Proximity hazards | distance check every frame |
 | Restart guard: work cannot restart after idle while the seatbelt is off | Seatbelt compliance | interlock in the sim |
-| Idle counter in minutes, litres and rupees, with the reason | Unusual behaviour (idling) | Random forest (`/classify/idle`) |
+| Idle counter in minutes, litres and rupees, with the reason | Unusual behaviour (idling) | Random forest (`/classify/idle`); all 9 inputs come from the sim (site clock, engine run time, heat curve, truck ETA, rpm, seat) |
 | "Next truck in 6 min, switch off" nudge | Unusual behaviour (idling) | truck ETA from the site |
-| Voice near-miss report + 60 s black box | Incident logging | Web Speech API (hi-IN), structured report |
+| Voice near-miss report + 60 s black box | Incident logging | Web Speech API (hi-IN). Severity from the black box by rule (closest worker < 7 m High, < 11 m Medium, else Low; +1 if swinging), category from transcript keywords; the LLM (Groq) only writes the summary and suggested action. Each field is marked "from black box" or "LLM wording". No microphone: a sample transcript is used and the report says so |
 | Unusual hour detection | Unusual behaviour | Isolation forest + readable rules (`/score/behaviour`) |
 | Lessons from yesterday's events | Operator training hub | handheld screen |
 | Safe / Caution / Critical lamp on the machine display: one state fused from seatbelt, swing-radius distance, today's history and the operator's twin, always with a one-line reason; debounced so it can't flicker. Critical entries are logged; the supervisor sees each machine's state | Safety features | Rules (`frontend/src/lib/risk.ts`, `fuse_risk` in `api.py`) |
@@ -59,14 +59,18 @@ If the API is not running, the app still works and falls back to cached predicti
 
 | Model | Question it answers | Algorithm | Current result |
 | --- | --- | --- | --- |
-| Task time | How long will this job take, and how sure are we? | Gradient boosting with quantile loss, 3 models (P10, P50, P90) | Error 7.1 min against the planner's 19.8 min |
+| Task time | How long will this job take, and how sure are we? | Gradient boosting with quantile loss, 3 models (P10, P50, P90), P10–P90 widened by split-conformal calibration | Error 7.1 min against the planner's 19.8 min. P10–P90 covers 82.5% of 601 test tasks (nominal 80%; 71.2% before calibration) |
 | Idle reason | Why is the engine on with no work? | Random forest on 9 window features | 98.3% accuracy on synthetic data |
-| Unusual behaviour | Was this hour unusual for this operator? | Isolation forest + rules that give a plain reason | 100% precision, 89% recall on planted anomalies. Flags exactly the 10:00 and next-day 09:00 rows of the official sample |
+| Unusual behaviour | Was this hour unusual for this operator? | Isolation forest + rules that give a plain reason | Fit on days 0–69, scored on the 200 held-out hours of days 70–89: 100% precision (13 of 13 flags), 81% recall (13 of 16 planted). Flags exactly the 10:00 and next-day 09:00 rows of the official sample |
 | Machine health | Will this machine have a failure in the next 50 engine hours, and why? | Gradient boosting classifier on sensors + S·O·S oil sample | ROC AUC 0.83. Top 10% riskiest: 75% really fail, against a 16.5% base rate |
 | Fuel burn rate | How many litres per hour will this task burn? | Gradient boosting regressor, same features as task time | Error 0.87 L/h against 2.81 L/h for one flat rate |
 | Operator digital twin | Is this hour unusual *for this person, in these conditions*? | Running mean/spread per operator × condition (Welford, updated incrementally), z-score with plain reasons | On 900 held-out hours: catches 95% of planted anomalies with 67% of flags real, against 81% / 40% for one site-wide threshold. Agrees with the brief's alert column on all 4 official rows |
 
 Explanations: for each task, we re-predict with one factor set to an "easy day" value (sunny, expert, loam, new machine) and report the difference in minutes. That is the "+7 min: soil clay" chip. The health model uses the same trick: put one reading back to its healthy value, and the drop in risk is that reading's share ("Silicon 24 ppm, usual 8: +41 pts, check the air filter").
+
+Task-time range: the P10 and P90 models are fit on 75% of the training split; on the other 25% (601 tasks) we measure how far outside the band the real times fall and widen both ends by that margin (split-conformal / conformalized quantile regression, q = 1.8 min). The test split is only used for the final numbers.
+
+All metrics are on synthetic data with planted patterns (see below), so they show the pipeline works, not field accuracy.
 
 Fuel run-out: litres per task = fuel-rate model × P50 minutes from the task-time model, plus 5 L/h between tasks. The time the tank hits reserve is the first point on that timeline where the reserve is crossed.
 
@@ -78,7 +82,7 @@ VisionLink (Cat's fleet telematics app) already gives owners hours, location, ut
 2. **A reason next to every number.** Idle is split by reason (waiting for truck, heat rest, warm-up, cool-down, waste), so only waste counts against anyone. Each health risk names the reading behind it and what to check.
 3. **The operator sees it too.** The same health result turns into the first walkaround item on the operator's tablet, and the fuel forecast into "refuel before T103". Coaching, not surveillance. An alert budget pushes only high-severity items to phones.
 
-The fleet data (6 machines, including a non-Cat backhoe to show mixed fleet) is synthetic, in `ml/data/fleet.json`. The API scores it with the real models on every request. The frontend keeps a saved copy of one real API response (`frontend/src/data/fleet_fallback.json`) for when the API is down.
+The fleet data (6 machines, including a non-Cat backhoe to show mixed fleet) is synthetic, in `ml/data/fleet.json`. The API scores it with the real models on every request. Fuel today = fuel-rate model L/h for each machine's task (or a default task for its kind; the backhoe scaled 0.5 by engine power) × working hours, plus 3.8 L/h idle. Idle by reason: each machine's metered idle total is cut into 5-minute windows whose sensor context (clock, heat, warm-up, truck cycle, seat) is simulated per machine, and the idle-reason model labels each window. The Hours page's weekly idle split is a cached output of the same function. The frontend keeps a saved copy of one real API response (`frontend/src/data/fleet_fallback.json`) for when the API is down.
 
 Synthetic data: `generate_data.py` extends the two tables from the problem statement and plants known patterns (skill, weather, soil, machine age multipliers; the planner ignoring skill; unbuckling during long idles). The 5 official task rows are kept as the first rows.
 

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Command } from 'cmdk'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { ArrowRightLeft, Clapperboard, Moon, PlugZap, TabletSmartphone, Volume2 } from 'lucide-react'
+import { ArrowRightLeft, Clapperboard, ClipboardCheck, Moon, PlugZap, TabletSmartphone, Volume2 } from 'lucide-react'
 import { useApp, type Workspace } from '@/store/app'
 import { useFleet } from '@/hooks/queries'
 import { machine } from '@/data/demo'
@@ -61,6 +61,9 @@ export function CommandPalette() {
               ))}
 
               <Command.Group heading="Actions" className={GROUP}>
+                <Command.Item value="pre-start walkaround inspection checklist" onSelect={run(() => navigate('operator', 'walkaround'))} className={ITEM}>
+                  <ClipboardCheck size={17} className="text-fg-3" aria-hidden /> Pre-start walkaround · {machine.id}
+                </Command.Item>
                 <Command.Item value="dock machine display" onSelect={run(() => { navigate('operator'); setDevice('docking') })} className={ITEM}>
                   <PlugZap size={17} className="text-fg-3" aria-hidden /> Dock to {machine.model} · {machine.id}
                 </Command.Item>

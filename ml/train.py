@@ -44,21 +44,37 @@ y = tasks["actual_min"]
 X_tr, X_te, y_tr, y_te, p_tr, p_te = train_test_split(
     X, y, tasks["planner_estimate_min"], test_size=0.2, random_state=0)
 
+# P50 learns from the whole training split. P10/P90 learn from 75% of it; the other 25% is a
+# calibration split for split-conformal correction (conformalized quantile regression, Romano et
+# al. 2019): raw quantile models under-cover, so we measure by how much on data they never saw
+# and widen both ends by that margin q. The test split stays untouched for the final numbers.
+X_fit, X_cal, y_fit, y_cal = train_test_split(X_tr, y_tr, test_size=0.25, random_state=1)
 task_models = {}
 for q in (0.1, 0.5, 0.9):
     m = GradientBoostingRegressor(loss="quantile", alpha=q, n_estimators=300,
                                   max_depth=3, learning_rate=0.05, random_state=0)
-    m.fit(X_tr, y_tr)
+    m.fit(*((X_tr, y_tr) if q == 0.5 else (X_fit, y_fit)))
     task_models[f"p{int(q*100)}"] = m
+
+ALPHA = 0.2  # nominal P10-P90 = 80% coverage
+lo_cal, hi_cal = task_models["p10"].predict(X_cal), task_models["p90"].predict(X_cal)
+scores = np.maximum(lo_cal - y_cal.to_numpy(), y_cal.to_numpy() - hi_cal)
+n_cal = len(scores)
+conformal_q = float(np.quantile(scores, min(np.ceil((n_cal + 1) * (1 - ALPHA)) / n_cal, 1.0), method="higher"))
 
 p10, p50, p90 = (task_models[k].predict(X_te) for k in ("p10", "p50", "p90"))
 metrics["task_time"] = {
     "model_mae_min": round(mean_absolute_error(y_te, p50), 2),
     "planner_mae_min": round(mean_absolute_error(y_te, p_te), 2),
-    "p10_p90_coverage": round(float(np.mean((y_te >= p10) & (y_te <= p90))), 3),
+    "p10_p90_coverage_raw": round(float(np.mean((y_te >= p10) & (y_te <= p90))), 3),
+    "p10_p90_coverage": round(float(np.mean((y_te >= p10 - conformal_q) & (y_te <= p90 + conformal_q))), 3),
+    "conformal_q_min": round(conformal_q, 2),
+    "mean_band_width_min": round(float(np.mean(p90 - p10 + 2 * conformal_q)), 1),
+    "calibration_rows": int(n_cal),
     "test_rows": int(len(y_te)),
 }
-joblib.dump({"models": task_models, "columns": list(X.columns)}, MODELS / "task_time.joblib")
+joblib.dump({"models": task_models, "columns": list(X.columns), "conformal_q": conformal_q},
+            MODELS / "task_time.joblib")
 
 # ---------------------------------------------------------------- 2. idle reason
 idle = pd.read_csv(DATA / "idle_windows.csv")
@@ -77,16 +93,21 @@ joblib.dump({"model": idle_model, "features": IDLE_FEATURES}, MODELS / "idle_rea
 # ---------------------------------------------------------------- 3. unusual behaviour
 hours = pd.read_csv(DATA / "shift_hours.csv")
 BEH_FEATURES = ["fuel_l", "load_cycles", "idle_min", "seatbelt_off_min", "harsh_swings", "raised_bucket_travel"]
+# Unsupervised, so labels are never used for fitting -- but precision/recall are still measured
+# on days the forest never saw: fit on days 0-69, score the last 20 days (70-89).
+hours_tr, hours_te = hours[hours["day"] < 70], hours[hours["day"] >= 70]
 iso = IsolationForest(n_estimators=200, contamination=0.06, random_state=0)
-iso.fit(hours[BEH_FEATURES])
-flagged = iso.predict(hours[BEH_FEATURES]) == -1
-planted = hours["planted_anomaly"] == 1
+iso.fit(hours_tr[BEH_FEATURES])
+flagged = iso.predict(hours_te[BEH_FEATURES]) == -1
+planted = (hours_te["planted_anomaly"] == 1).to_numpy()
 metrics["unusual_behaviour"] = {
     "precision": round(float((flagged & planted).sum() / max(flagged.sum(), 1)), 3),
     "recall": round(float((flagged & planted).sum() / max(planted.sum(), 1)), 3),
+    "flags": int(flagged.sum()), "planted": int(planted.sum()),
+    "train_hours": int(len(hours_tr)), "test_hours": int(len(hours_te)),
 }
 joblib.dump({"model": iso, "features": BEH_FEATURES,
-             "baseline": hours.loc[~planted, BEH_FEATURES].mean().round(2).to_dict()},
+             "baseline": hours_tr.loc[hours_tr["planted_anomaly"] == 0, BEH_FEATURES].mean().round(2).to_dict()},
             MODELS / "behaviour.joblib")
 
 # ---------------------------------------------------------------- 4. machine health risk

@@ -2,7 +2,11 @@
   "task_time": {
     "model_mae_min": 7.09,
     "planner_mae_min": 19.84,
-    "p10_p90_coverage": 0.737,
+    "p10_p90_coverage_raw": 0.712,
+    "p10_p90_coverage": 0.825,
+    "conformal_q_min": 1.83,
+    "mean_band_width_min": 25.1,
+    "calibration_rows": 601,
     "test_rows": 601
   },
   "idle_reason": {
@@ -28,7 +32,11 @@
   },
   "unusual_behaviour": {
     "precision": 1.0,
-    "recall": 0.885
+    "recall": 0.812,
+    "flags": 13,
+    "planted": 16,
+    "train_hours": 700,
+    "test_hours": 200
   },
   "machine_health": {
     "roc_auc": 0.825,

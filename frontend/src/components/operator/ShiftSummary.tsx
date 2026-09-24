@@ -1,74 +1,84 @@
-import { Activity, GraduationCap } from 'lucide-react'
+import { Activity, BellRing, GraduationCap } from 'lucide-react'
 import type { ShiftSummary } from '@/types'
-import { operator } from '@/data/demo'
-import { DIESEL_INR } from '@/lib/sim'
+import { machine, operator } from '@/data/demo'
+import { DIESEL_INR, IDLE_BURN_LPH } from '@/lib/sim'
 import { inr } from '@/lib/utils'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/status'
+import { DayTimeline } from './DayTimeline'
 
 function Figure({ value, label }: { value: string | number; label: string }) {
   return (
     <div>
-      <div className="font-display text-[32px] leading-none font-semibold text-fg">{value}</div>
+      <div className="font-display text-[24px] leading-none font-semibold text-fg">{value}</div>
       <div className="mt-1 text-[13px] text-fg-3">{label}</div>
     </div>
   )
 }
 
+const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`)
+
+/** One sentence for the day, computed from what the machine recorded (nothing invented). */
+function dayHeadline(t: ShiftSummary) {
+  const docked = t.dockedMin >= 60 ? `${(t.dockedMin / 60).toFixed(1)} h docked` : `${Math.round(t.dockedMin)} min docked`
+  const loads = `${t.cycles} ${t.cycles === 1 ? 'load' : 'loads'}`
+  const offs = t.timeline?.filter((i) => i.kind === 'mark' && i.mark === 'engine_off').length ?? 0
+  // fuel the switch-offs saved: site minutes engine-off while no truck was at the bay × idle burn
+  const saved = ((t.engineOffWaitMin ?? 0) / 60) * IDLE_BURN_LPH * DIESEL_INR
+  const idle = offs > 0
+    ? `switched off ${times(offs)} for trucks, saving ${inr(saved)}`
+    : t.wasteMin >= 1 ? `${t.wasteMin.toFixed(0)} min avoidable idle (${inr(t.wasteFuelL * DIESEL_INR)})` : 'no avoidable idle'
+  return `${docked} · ${loads} · ${idle}`
+}
+
 export function ShiftSummaryCard({ today }: { today: ShiftSummary }) {
-  const justified = Math.max(today.idleMin - today.wasteMin, 0)
-  const total = Math.max(today.idleMin, 1)
+  const alerts = today.alerts
   return (
     <Card className="border-fg/15" style={{ animation: 'var(--animate-enter)' }}>
       <CardHeader icon={Activity} title="End of shift summary" description="From the machine, while you were docked"
         outcomes={['Identify unusual behaviour in machine usage']} />
       <CardBody>
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-          <Figure value={`${(today.dockedMin / 60).toFixed(1)} h`} label="verified on EXC001" />
+        <p className="font-display text-[22px] leading-tight font-semibold text-fg">{dayHeadline(today)}</p>
+
+        {today.timeline && today.timeline.length > 0 && (
+          <div className="mt-4">
+            <div className="label-caps text-fg-3">Your day on {machine.id}</div>
+            <DayTimeline timeline={today.timeline} />
+          </div>
+        )}
+
+        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-border pt-4 sm:grid-cols-4">
+          <Figure value={`${(today.dockedMin / 60).toFixed(1)} h`} label={`verified on ${machine.id}`} />
           <Figure value={today.cycles} label="load cycles" />
           <Figure value={`${today.idleMin.toFixed(0)} min`} label={`idle · ${today.idleFuelL.toFixed(1)} L · ${inr(today.idleFuelL * DIESEL_INR)}`} />
           <Figure value={today.events.length} label="safety events" />
         </div>
 
-        <div className="mt-5">
-          <div className="flex h-3 overflow-hidden rounded-sm bg-surface-3" role="img"
-            aria-label={`${justified.toFixed(0)} minutes justified idle, ${today.wasteMin.toFixed(0)} minutes avoidable`}>
-            <div className="bg-s1" style={{ width: `${(justified / total) * 100}%` }} />
-            <div className="border-l-2 border-surface bg-s8" style={{ width: `${(today.wasteMin / total) * 100}%` }} />
+        {(today.beltOffMin > 0 || today.lessons.length > 0) && (
+          <div className="mt-4 flex flex-wrap items-start gap-x-6 gap-y-3">
+            {today.beltOffMin > 0 && (
+              <StatusBadge tone="serious">Seatbelt off with engine running: {today.beltOffMin.toFixed(0)} min</StatusBadge>
+            )}
+            {today.lessons.length > 0 && (
+              <div className="min-w-[16rem] flex-1">
+                <div className="label-caps mb-1 flex items-center gap-1.5 text-fg-3"><GraduationCap size={14} aria-hidden /> New lessons from today</div>
+                {today.lessons.map((l) => (
+                  <div key={l.title} className="text-[15px] text-fg">{l.title} <span className="font-mono text-xs text-fg-3">· {l.mins} min</span></div>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-[13px]">
-            <span className="flex items-center gap-1.5 text-fg-2"><span className="h-2.5 w-2.5 rounded-sm bg-s1" />{justified.toFixed(0)} min justified (truck close)</span>
-            <span className="flex items-center gap-1.5 text-fg-2"><span className="h-2.5 w-2.5 rounded-sm bg-s8" />{today.wasteMin.toFixed(0)} min avoidable · {inr(today.wasteFuelL * DIESEL_INR)}</span>
-          </div>
-        </div>
-
-        {today.beltOffMin > 0 && (
-          <StatusBadge tone="serious" className="mt-4">Seatbelt off with engine running: {today.beltOffMin.toFixed(0)} min</StatusBadge>
         )}
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          {today.events.length > 0 && (
-            <div>
-              <div className="label-caps mb-2 text-fg-3">Events</div>
-              <ul className="space-y-1.5">
-                {today.events.slice(0, 4).map((e) => (
-                  <li key={e.id} className="flex gap-3 text-sm"><span className="font-mono text-fg-3">{e.time}</span><span className="text-fg-2">{e.text}</span></li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {today.lessons.length > 0 && (
-            <div className="rounded-md border border-border bg-surface-2 p-3">
-              <div className="label-caps mb-2 flex items-center gap-1.5 text-fg-3"><GraduationCap size={14} /> New lessons from today</div>
-              {today.lessons.map((l) => (
-                <div key={l.title} className="text-[15px] text-fg">{l.title} <span className="font-mono text-xs text-fg-3">· {l.mins} min</span></div>
-              ))}
-            </div>
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-fg-3">
+          <span>Skill passport: +{(today.dockedMin / 60).toFixed(1)} verified hours → {(operator.passport.hours + today.dockedMin / 60).toFixed(0)} h</span>
+          {alerts && alerts.total > 0 && (
+            <span className="flex items-center gap-1.5">
+              <BellRing size={13} aria-hidden />
+              {alerts.pushed} of {alerts.total} alerts went to your supervisor (high severity only)
+            </span>
           )}
         </div>
-        <p className="mt-4 text-[13px] text-fg-3">
-          Skill passport: +{(today.dockedMin / 60).toFixed(1)} verified hours → {(operator.passport.hours + today.dockedMin / 60).toFixed(0)} h
-        </p>
       </CardBody>
     </Card>
   )

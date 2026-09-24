@@ -6,11 +6,13 @@ Docs: http://localhost:8000/docs
 """
 import json
 import os
+import re
+import zlib
 from pathlib import Path
-from typing import Literal
 
 import httpx
 import joblib
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -83,7 +85,12 @@ def predict_task(task: Task):
             reasons.append({"factor": LABELS[key], "value": str(row[key]), "minutes": round(delta, 1)})
     reasons.sort(key=lambda r: -abs(r["minutes"]))
     p10, p90 = sorted([float(preds["p10"][0]), float(preds["p90"][0])])
-    return {"p10": round(p10), "p50": round(float(p50[0])), "p90": round(p90),
+    # split-conformal correction (train.py): widen both ends by the margin measured on a
+    # calibration split, so P10-P90 really covers ~80% of held-out tasks
+    q = float(task_bundle.get("conformal_q", 0.0))
+    mid = float(p50[0])
+    p10, p90 = min(p10 - q, mid), max(p90 + q, mid)
+    return {"p10": round(p10), "p50": round(mid), "p90": round(p90),
             "planner_estimate": task.planner_estimate_min, "reasons": reasons[:3]}
 
 
@@ -336,6 +343,70 @@ def fuse_risk(hour: dict, twin: dict) -> dict:
     return {"level": "safe", "reason": "Working as usual for this operator"}
 
 
+# Fuel today. Working hours burn at the fuel-rate model's L/h for the machine's task (its first
+# planned task, else a default task for its kind); idle burns at 3.8 L/h. The model learned on
+# Cat 320-class (~120 kW) work, so smaller machines are scaled by rated power.
+IDLE_LPH = 3.8
+DEFAULT_TASK = {"Excavator": "Earth Excavation", "Wheel loader": "Material Loading", "Dumper": "Material Loading",
+                "Backhoe": "Trenching"}  # dumpers: no hauling task in the training data, loading is the closest proxy
+POWER_SCALE = {"Backhoe": 0.5}  # JCB 3DX ~55-68 kW vs Cat 320 ~120 kW
+
+
+def _kind(m: dict) -> str:
+    return next((k for k in DEFAULT_TASK if m["kind"].startswith(k)), "Excavator")
+
+
+def _work_lph(m: dict) -> float:
+    ctx = m["tasks"][0] if m["tasks"] else dict(
+        task_type=DEFAULT_TASK[_kind(m)], weather="Sunny", operator_skill="Intermediate", soil="Loam",
+        machine_age_yrs=m["health"].get("machine_age_yrs", 5), ambient_temp_c=35, volume_m3=150,
+        planner_estimate_min=60)
+    X = pd.get_dummies(pd.DataFrame([ctx])[CAT_COLS + NUM_COLS], columns=CAT_COLS, dtype=float)
+    lph = float(fuel_bundle["model"].predict(X.reindex(columns=fuel_bundle["columns"], fill_value=0.0))[0])
+    return lph * POWER_SCALE.get(_kind(m), 1.0)
+
+
+# Idle today, by reason. The engine-hour meter gives each machine's total idle minutes
+# (fleet.json); we cut it into 5-minute windows, rebuild each window's sensor context from the
+# day (site clock, heat curve, engine warm-up, truck cycle at that machine, seat switch) and let
+# the idle-reason model classify every window. Seeded per machine, so the split is stable.
+# The window contexts are simulated (no per-window logs in the demo data); the labels are the model's.
+IDLE_CTX = {  # kind -> (max next-truck ETA seen while idle in min, P(seat occupied))
+    "Excavator": (10, 0.9), "Wheel loader": (10, 0.9), "Dumper": (30, 0.9), "Backhoe": (30, 0.55),
+}
+IDLE_REASONS = ("waiting_for_truck", "heat_rest", "warm_up", "cool_down", "waste")
+
+
+def _idle_windows(m: dict, total_min: float, seed: int, start_h: float = 7.0, now_h: float = 13.5) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    n = max(int(round(total_min / 5)), 1)
+    eta_max, p_seat = IDLE_CTX[_kind(m)]
+    p_seat = max(p_seat - 0.05 * m.get("seatbelt_violations", 0), 0.3)
+    hour = rng.uniform(start_h, now_h, n)
+    since = (hour - start_h) * 60
+    warm = rng.random(n) < 0.08  # a share of idles right after a start (morning, after breaks)
+    since[warm] = rng.uniform(0, 12, warm.sum())
+    to_stop = np.where(hour < 13, (13 - hour) * 60, (19 - hour) * 60)  # next planned shutdown: heat break, shift end
+    cool = rng.random(n) < 0.05
+    to_stop[cool] = rng.uniform(0, 6, cool.sum())
+    ambient = 29 + 12 * np.exp(-(((hour - 14) / 3) ** 2)) + rng.normal(0, 1, n)
+    return pd.DataFrame({
+        "mins_since_engine_start": since, "mins_to_shift_end": to_stop, "hour_of_day": hour,
+        "ambient_temp_c": ambient, "next_truck_eta_min": rng.uniform(0.5, eta_max, n),
+        "hyd_oil_temp_c": 35 + 40 * (1 - np.exp(-since / 15)) + rng.normal(0, 3, n),
+        "engine_rpm": np.where(since < 12, 1150, 1000) + rng.normal(0, 50, n),
+        "seat_occupied": (rng.random(n) < p_seat).astype(int),
+        "ac_on": ((ambient > 36) | (rng.random(n) < 0.3)).astype(int),
+    })[idle_bundle["features"]]
+
+
+def idle_split(m: dict, total_min: float, seed: int, **kw) -> dict:
+    labels = idle_bundle["model"].predict(_idle_windows(m, total_min, seed, **kw))
+    counts = pd.Series(labels).value_counts()
+    n = len(labels)  # scale window counts back to the meter's total minutes
+    return {c: int(round(counts.get(c, 0) / n * total_min)) for c in IDLE_REASONS}
+
+
 @app.get("/fleet")
 def fleet():
     machines, alerts = [], []
@@ -349,12 +420,17 @@ def fleet():
                "weather": m["tasks"][0]["weather"] if m["tasks"] else "Sunny", "machine_id": m["id"], "hour_of_shift": 7}
         tw = twins.score(op_id, ctx, m["hour_stats"]) if op_id in twins.twins else {"unusual": False, "reasons": []}
         risk = fuse_risk(m["hour_stats"], tw)
-        idle_total = sum(m["idle_min"].values())
-        waste = m["idle_min"]["waste"]
+        idle_total = sum(m["idle_min"].values())  # meter total; the split below comes from the model
+        by_reason = idle_split(m, idle_total, seed=zlib.crc32(m["id"].encode()))
+        waste = by_reason["waste"]
+        work_lph = _work_lph(m)
         machines.append({k: m[k] for k in ("id", "make", "model", "kind", "operator", "zone", "x", "y", "hours",
                                            "tank_l", "fuel_l", "working_h", "service_due_h", "cycles", "payload_t",
                                            "seatbelt_violations", "faults")}
-                        | {"idle_min": idle_total, "idle_waste_min": waste, "idle_by_reason": m["idle_min"],
+                        | {"idle_min": idle_total, "idle_waste_min": waste, "idle_by_reason": by_reason,
+                           "idle_by_reason_source": "idle-reason model on 5-min windows",
+                           "work_lph": round(work_lph, 1),
+                           "fuel_used_l": round(m["working_h"] * work_lph + idle_total / 60 * IDLE_LPH, 1),
                            "fuel_pct": round(m["fuel_l"] / m["tank_l"] * 100), "health": h, "fuel_plan": f,
                            "behaviour": b, "twin": tw, "risk": risk})
         if risk["level"] == "critical":
@@ -377,7 +453,7 @@ def fleet():
     work_h = sum(m["working_h"] for m in machines)
     idle_h = sum(m["idle_min"] for m in machines) / 60
     waste_h = sum(m["idle_waste_min"] for m in machines) / 60
-    fuel_used = sum(m["working_h"] * 15 + m["idle_min"] / 60 * 3.8 for m in machines)
+    fuel_used = sum(m["fuel_used_l"] for m in machines)
     official = []
     for r in OFFICIAL_ROWS:
         hour = dict(fuel_l=r["fuel_l"], load_cycles=r["load_cycles"], idle_min=r["idle_min"],
@@ -395,6 +471,7 @@ def fleet():
             "idle_waste_h": round(waste_h, 1),
             "fuel_used_l": round(fuel_used),
             "co2_kg": round(fuel_used * CO2_KG_PER_L),
+            "fuel_basis": "fuel-rate model L/h x working hours + 3.8 L/h idle",
             "seatbelt_violations": sum(m["seatbelt_violations"] for m in machines),
             "cycles": sum(m["cycles"] for m in machines),
         },
@@ -445,49 +522,69 @@ class IncidentTranscript(BaseModel):
     location: str = "Zone B, Bay 2 (auto from machine position)"
 
 
-class IncidentAssessment(BaseModel):
-    """The only three fields Claude is allowed to decide, matching what the
-    frontend's regex fallback currently guesses at."""
-    category: Literal["Vehicle interaction", "Person in swing zone", "Other"]
-    severity: Literal["Low", "Medium", "High"]
+# ---- severity and category are decided by rules, never by the LLM ----
+# Same rules as the frontend fallback (frontend/src/lib/incident.ts); keep the two in step.
+SEVERITY = ("Low", "Medium", "High")
+VEHICLE_WORDS = re.compile(r"dumper|dumpar|truck|tipper|lorry|tractor|gaadi|gadi|vehicle|loader", re.I)
+PERSON_WORDS = re.compile(r"worker|aadmi|admi|labou?r|person|banda|helper|mazdoor|log\b", re.I)
+
+
+def incident_rules(transcript: str, min_dist_m: float, machine_state: str) -> dict:
+    """Black-box rule: min operator-to-worker distance < 7 m -> High, < 11 m -> Medium, else Low;
+    the machine working/swinging at the time raises it one level. Category from transcript keywords,
+    else from the black box (a worker inside 11 m -> person in swing zone)."""
+    level = 2 if min_dist_m < 7 else 1 if min_dist_m < 11 else 0
+    basis = (f"Closest worker {min_dist_m:.1f} m in last 60 s" if min_dist_m < 99
+             else "No worker near the machine in last 60 s")
+    moving = machine_state.lower().startswith("working")
+    if moving and level < 2:
+        level += 1
+        basis += "; machine was working/swinging (+1 level)"
+    if VEHICLE_WORDS.search(transcript):
+        category = "Vehicle interaction"
+    elif PERSON_WORDS.search(transcript) or min_dist_m < 11:
+        category = "Person in swing zone"
+    else:
+        category = "Other"
+    return {"severity": SEVERITY[level], "severity_basis": basis, "category": category}
+
+
+class IncidentWording(BaseModel):
+    """The only fields the LLM writes: wording, never a decision."""
+    summary: str
     suggested_action: str
 
 
 @app.post("/structure/incident")
 def structure_incident(req: IncidentTranscript):
-    """Structures a voice-reported near-miss (Hindi/English/Hinglish transcript)
-    into the same report shape the frontend's regex fallback produces. The LLM
-    only fills in category/severity/suggested_action -- reasoning over the real
-    transcript and the real black-box distance passed in, never inventing a
-    fact of its own. type/location/machine/operator/machine_state are passed
-    straight through unchanged. Frontend falls back to its own rule-based
-    version when this 503s (no key configured) or 502s (the call failed or
-    returned something that doesn't match the expected shape)."""
+    """Structures a voice-reported near-miss (Hindi/English/Hinglish transcript).
+    Severity and category are computed here by fixed rules from the black box and the transcript
+    (incident_rules). The LLM only writes a one-line English summary and a suggested action, given
+    those decided fields as context; it cannot change them. `sources` says where each field came
+    from. Frontend falls back to the same rules plus a template action when this 503s (no key)
+    or 502s (the call failed or returned the wrong shape)."""
     if not GROQ_API_KEY:
         raise HTTPException(503, "GROQ_API_KEY not set on the server")
 
+    decided = incident_rules(req.transcript, req.min_dist_m, req.machine_state)
     client = Groq(api_key=GROQ_API_KEY)
     system = (
         "You are a mine-site safety reporting assistant. You are given the transcript of "
         "an excavator operator's spoken near-miss report (it may be in Hindi, English, or "
-        "Hinglish) plus real sensor context: the machine's state and the minimum "
-        "operator-to-worker distance measured by the machine's black box over the last 60 "
-        "seconds. You must base severity on the REAL distance figure given to you -- never "
-        "invent, guess, or adjust that number. Read the transcript to classify the incident "
-        "category and to write one short, concrete suggested safety action for the site "
-        "safety officer.\n\n"
-        'Respond with ONLY a JSON object with exactly these keys: '
-        '"category" (one of "Vehicle interaction", "Person in swing zone", "Other"), '
-        '"severity" (one of "Low", "Medium", "High"), '
-        '"suggested_action" (a short, concrete string). No other text, no markdown fences.'
+        "Hinglish) plus facts that are already decided: the category, the severity, the machine "
+        "state and the black box's minimum distance to a worker. Do not re-assess or contradict "
+        "them. Write (1) a one-sentence plain-English summary of what the operator said, and "
+        "(2) one short, concrete suggested safety action for the site safety officer.\n\n"
+        'Respond with ONLY a JSON object with exactly these keys: "summary" (string), '
+        '"suggested_action" (string). No other text, no markdown fences.'
     )
     user = (
         f'Transcript: "{req.transcript}"\n'
         f"Machine: {req.machine_model} ({req.machine_id})\n"
         f"Machine state at the time of the report: {req.machine_state}\n"
-        f"Minimum distance to a worker in the last 60s, from the black box: {req.min_dist_m:.1f} m\n\n"
-        "Classify this near-miss, assess its severity using the real distance above, and "
-        "suggest one concrete corrective action."
+        f"Minimum distance to a worker in the last 60s, from the black box: {req.min_dist_m:.1f} m\n"
+        f"Category (decided): {decided['category']}\n"
+        f"Severity (decided): {decided['severity']} ({decided['severity_basis']})"
     )
 
     try:
@@ -498,7 +595,7 @@ def structure_incident(req: IncidentTranscript):
             response_format={"type": "json_object"},
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         )
-        assessment = IncidentAssessment.model_validate_json(response.choices[0].message.content)
+        wording = IncidentWording.model_validate_json(response.choices[0].message.content)
     except Exception as e:
         # Broad on purpose: auth errors, rate limits, network failures, and schema
         # validation should all just look like a 502 to the frontend, which has
@@ -507,13 +604,18 @@ def structure_incident(req: IncidentTranscript):
 
     return {
         "type": "Near-miss",
-        "category": assessment.category,
-        "severity": assessment.severity,
+        "category": decided["category"],
+        "severity": decided["severity"],
+        "severity_basis": decided["severity_basis"],
         "location": req.location,
         "machine": f"{req.machine_model} {req.machine_id}",
         "operator": req.operator_id,
         "machine_state": req.machine_state,
-        "suggested_action": assessment.suggested_action,
+        "summary": wording.summary,
+        "suggested_action": wording.suggested_action,
+        "sources": {"category": "rule", "severity": "black box", "severity_basis": "black box",
+                    "machine_state": "black box", "location": "machine position",
+                    "summary": "LLM", "suggested_action": "LLM"},
     }
 
 
