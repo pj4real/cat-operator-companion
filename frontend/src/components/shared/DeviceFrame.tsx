@@ -8,7 +8,7 @@ const SCREEN_H = 800
 const BEZEL = 28
 const OUTER_W = SCREEN_W + BEZEL * 2
 const OUTER_H = SCREEN_H + BEZEL * 2
-const CRADLE = 84 // room under the tablet for the cab dock
+const CRADLE = 64 // room under the tablet for the cab dock
 
 function useViewport() {
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight })
@@ -51,7 +51,7 @@ export function DeviceFrame({ children, enabled, docked, cover, bottomReserve = 
     )
   }
 
-  const margin = 28
+  const margin = 18
   const availH = vp.h - margin - bottomReserve - (docked ? CRADLE : 0)
   const fit = Math.min((vp.w - margin * 2) / OUTER_W, availH / OUTER_H)
   const fx = (vp.w - OUTER_W * fit) / 2

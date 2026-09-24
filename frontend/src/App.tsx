@@ -160,7 +160,7 @@ export default function App() {
   if (intro) return <>{screen}{storyCard}{storyBar}</>
   return (
     <DeviceFrame enabled={frame} docked={device !== 'handheld'} cover={pullingBack}
-      bottomReserve={storyOn ? (captionsOn ? 130 : 76) : 24}
+      bottomReserve={storyOn ? (captionsOn ? 112 : 64) : 18}
       overlay={<>{storyCard}{storyBar}</>}>
       {screen}
       <Toaster position="bottom-right" closeButton />
