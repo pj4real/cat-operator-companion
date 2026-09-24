@@ -31,6 +31,14 @@ Demo scope: one operator (Ravi, OP1001) on one machine (Cat 320 excavator, EXC00
 | Unusual behaviour card while docked, per-hour rates from the sim | Unusual behaviour | Isolation forest + rules (`/score/behaviour`) |
 | End-of-shift summary: verified hours, idle split justified vs avoidable, events, new lessons | Operator training hub, unusual behaviour | handheld screen, from the sim |
 | Supervisor view: site KPIs, machine table, health and fuel predictions, site map, alert budget, official telemetry rows scored | All five | `fleet/FleetPages.tsx`, `GET /fleet` |
+| Pre-start walkaround ordered by prediction: the check the health model flagged (air filter, dust in the oil) comes first, on hotspots over the machine photo | Safety features | `operator/WalkaroundPage.tsx`, health model result |
+| Help manual in the cab: ten short Cat 320 videos; the keyless-start question flies the 3D view into the cab and lights up the start button | Operator training hub | `docked/HelpPanel.tsx`, `data/help.ts`, cab interior in `SiteScene.jsx` |
+| Supervisor push with an alert budget: Critical goes to the supervisor's phone, Caution stays on the tablet | Safety features | `docked/SupervisorPush.tsx` |
+| "Your day" timeline at the end of shift: working, waiting, avoidable idle, engine off, halted, with events | Unusual behaviour, operator training hub | recorded from the sim on state changes (`lib/sim.ts`) |
+| Spoken in-cab alerts (swing radius, restart guard, switch-off nudge), mutable | Safety features | browser speech (`lib/voice.ts`) |
+| Story mode for presenting: 14 chapters of Ravi's day, each setting up the exact state to narrate; subtitles | (presentation) | `lib/story.ts`, `shared/StoryBar.tsx`, see `DEMO_SCRIPT.md` |
+
+**Presenting:** open `http://localhost:5173/?story` and follow [DEMO_SCRIPT.md](DEMO_SCRIPT.md). The `tablet-frame` branch runs the whole app inside a rugged tablet mockup (`F` toggles it).
 
 ## Run it
 
