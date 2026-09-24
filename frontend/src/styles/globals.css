@@ -137,6 +137,8 @@
   --animate-dialog-in: dialog-in 200ms var(--ease-out);
   --animate-overlay-in: fade-in 200ms var(--ease-out);
   --animate-pulse-ring: pulse-ring 1.6s var(--ease-out) infinite;
+  --animate-notify-in: notify-in 250ms var(--ease-out) both;
+  --animate-notify-out: notify-out 150ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 @layer base {
@@ -182,6 +184,14 @@
 @keyframes blur-in { from { opacity: 0; filter: blur(10px); transform: translateY(6px); } to { opacity: 1; filter: blur(0); transform: none; } }
 @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes bar-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* a phone notification: slides in from the right edge, leaves faster than it came */
+@keyframes notify-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes notify-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(16px); } }
+
+/* diagonal hatch over a status fill, so "halted" reads without relying on colour */
+@utility hatch {
+  background-image: repeating-linear-gradient(-45deg, transparent 0 3px, color-mix(in srgb, var(--surface) 60%, transparent) 3px 5px);
+}
 
 /* Stagger only on first paint of a page; never blocks interaction. */
 .stagger > * { animation: var(--animate-enter); }
