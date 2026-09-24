@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { toast } from 'sonner'
 import {
-  ArrowDownToLine, ArrowUpToLine, BellOff, Box, CircleDashed, CircleHelp, X, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
+  ArrowDownToLine, ArrowUpToLine, BellOff, Box, CircleDashed, CircleHelp, Volume2, VolumeX, X, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
   Thermometer, Timer, TriangleAlert, Truck, Unplug, UserRound, Armchair, type LucideIcon,
 } from 'lucide-react'
 import SiteScene from './SiteScene'
@@ -12,6 +12,7 @@ import { useApp } from '@/store/app'
 import type { StoryCommand } from '@/lib/story'
 import { hourly, machine, operator } from '@/data/demo'
 import { classifyIdle, scoreBehaviour, scoreTwin, structureIncident } from '@/lib/api'
+import { sayNow } from '@/lib/voice'
 import { fuseRisk, latchRisk, RISK_RANK, type RiskLatch } from '@/lib/risk'
 import { incidentRules, OFFLINE_SOURCES, type FieldSource } from '@/lib/incident'
 import { DIESEL_INR, IDLE_BURN_LPH, SIM_SPEED, logEvent, markTimeline, recordTimeline, siteClock, type Sim } from '@/lib/sim'
@@ -223,6 +224,18 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
     return () => clearInterval(id)
   }, [sim])
 
+  // spoken alerts: the operator's eyes are on the bucket, not the screen
+  const [voiceOn, setVoiceOn] = useState(true)
+  const voiceRef = useRef(voiceOn)
+  voiceRef.current = voiceOn
+  const lastSpoken = useRef('')
+  useEffect(() => {
+    if (!voiceRef.current || risk.level !== 'critical') { if (risk.level !== 'critical') lastSpoken.current = ''; return }
+    const line = /swing radius|Worker/i.test(risk.reason) ? 'Stop. Person in the swing radius.'
+      : /Seatbelt/i.test(risk.reason) ? 'Seatbelt. Fasten before restart.' : 'Critical. Check the display.'
+    if (line !== lastSpoken.current) { lastSpoken.current = line; sayNow(line) }
+  }, [risk])
+
   // idle reason from the ML model, once per idle episode
   const isIdle = snap.engineOn && !snap.working && !snap.truckPresent
   useEffect(() => {
@@ -279,6 +292,14 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
   const behFlag = twin ? twin.unusual : !!beh && (beh.unusual || beh.reasons.length > 0)
 
   const etaMin = (snap.nextTruckEtaSec * SIM_SPEED) / 60
+  const showNudge = isIdle && !!idle && etaMin > 3 && snap.engineOn
+  const nudged = useRef(false)
+  useEffect(() => {
+    if (!showNudge) { if (!isIdle) nudged.current = false; return }
+    if (nudged.current || !voiceRef.current) return
+    nudged.current = true
+    sayNow(`Next truck in ${Math.round(etaMin)} minutes. Switch off to save fuel.`)
+  }, [showNudge, isIdle, etaMin])
   const idleMin = snap.idleSec / 60
   const rpm = !snap.engineOn ? 0 : snap.working ? 1750 : 1000
 
@@ -402,6 +423,10 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
           <div className="font-mono text-[26px] leading-none font-medium tabular">{siteClock(snap)}</div>
           <div className="label-caps text-[10px] text-fg-3">site time</div>
         </div>
+        <Button variant="ghost" size="icon" onClick={() => { setVoiceOn((v) => !v); window.speechSynthesis?.cancel() }}
+          aria-pressed={voiceOn} aria-label={voiceOn ? 'Mute voice alerts' : 'Turn voice alerts on'}>
+          {voiceOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+        </Button>
         <Button variant={helpOpen ? 'inverse' : 'secondary'} size="md" onClick={() => (helpOpen ? closeHelp() : setHelpOpen(true))}
           aria-expanded={helpOpen} aria-label="Help and how-to videos (?)"><CircleHelp size={18} /> Help</Button>
         <Button variant="secondary" size="md" onClick={() => { sim.focus = null; onUndock() }}><Unplug size={17} /> Undock</Button>
