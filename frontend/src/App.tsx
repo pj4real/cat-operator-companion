@@ -42,6 +42,10 @@ function summarise(s: Sim): ShiftSummary {
     beltOffMin: s.seatbeltOffSec / 60,
     events: s.events.filter((e) => e.level !== 'ok'),
     lessons: shiftLessons(s),
+    // a copy, so the summary on Today stays fixed if Ravi docks again
+    timeline: s.timeline.map((it) => ({ ...it })),
+    engineOffWaitMin: s.engineOffWaitSec / 60,
+    alerts: { ...s.alerts },
   }
 }
 

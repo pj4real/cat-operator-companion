@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { toast } from 'sonner'
 import {
-  ArrowDownToLine, ArrowUpToLine, Box, CircleDashed, CircleHelp, X, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
+  ArrowDownToLine, ArrowUpToLine, BellOff, Box, CircleDashed, CircleHelp, X, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
   Thermometer, Timer, TriangleAlert, Truck, Unplug, UserRound, Armchair, type LucideIcon,
 } from 'lucide-react'
 import SiteScene from './SiteScene'
@@ -10,8 +10,9 @@ import { HelpPanel } from './HelpPanel'
 import type { HelpItem } from '@/data/help'
 import { hourly, machine, operator } from '@/data/demo'
 import { classifyIdle, scoreBehaviour, scoreTwin, structureIncident } from '@/lib/api'
-import { fuseRisk, latchRisk, type RiskLatch } from '@/lib/risk'
-import { DIESEL_INR, IDLE_BURN_LPH, SIM_SPEED, logEvent, siteClock, type Sim } from '@/lib/sim'
+import { fuseRisk, latchRisk, RISK_RANK, type RiskLatch } from '@/lib/risk'
+import { DIESEL_INR, IDLE_BURN_LPH, SIM_SPEED, logEvent, markTimeline, recordTimeline, siteClock, type Sim } from '@/lib/sim'
+import { SupervisorPush, type Push } from './SupervisorPush'
 import { isRowUnusual, ruleBasedBehaviour, type HourStats } from '@/lib/behaviour'
 import { cn, inr } from '@/lib/utils'
 import type { BehaviourResult, RiskState, SimEvent, TwinScore, Zone } from '@/types'
@@ -144,10 +145,27 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
   const twinRef = useRef<TwinScore | null>(null)
   const idleStart = useRef<number | null>(null)
   const lastIdleMin = useRef(0)
+  // alert budget: Critical goes to the supervisor's phone; Caution stays on the tablet
+  const [push, setPush] = useState<Push | null>(null)
+  const clearPush = useCallback(() => setPush(null), [])
+  const [budgetNoteFor, setBudgetNoteFor] = useState<number | null>(null)
+  const budgetNoted = useRef(false)
+  // previous machine state, so the timeline only gets point events on a change
+  const prevState = useRef({ seatbelt: sim.seatbelt, zone: sim.zone, engineOn: sim.engineOn, haltReason: sim.haltReason })
 
   // read the simulation 4x per second, fuse the risk state, keep a 60 s black box
   useEffect(() => {
     const id = setInterval(() => {
+      // "Your day" timeline: state segments + point events, appended only on change
+      recordTimeline(sim)
+      const was = prevState.current
+      if (sim.zone === 'danger' && was.zone !== 'danger') markTimeline(sim, 'worker', 'Worker inside the 7 m swing radius · swing held')
+      if (!sim.seatbelt && was.seatbelt) markTimeline(sim, 'belt_off', 'Seatbelt unfastened during idle')
+      if (!sim.engineOn && was.engineOn)
+        markTimeline(sim, 'engine_off', `Switched off, next truck ${((sim.nextTruckEtaSec * SIM_SPEED) / 60).toFixed(0)} min away`)
+      if (sim.haltReason === 'seatbelt' && was.haltReason !== 'seatbelt') markTimeline(sim, 'restart_guard', 'Restart guard held the machine: belt off as the truck arrived')
+      prevState.current = { seatbelt: sim.seatbelt, zone: sim.zone, engineOn: sim.engineOn, haltReason: sim.haltReason }
+
       setSnap({ ...sim, events: [...sim.events] })
 
       // current idle episode, so a restart can say how long the machine sat
@@ -169,6 +187,18 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
         // explainable alert: every entry into Critical is logged with its reason
         // (the scene already logs the swing-radius entry itself)
         if (shown.level === 'critical' && prev?.level !== 'critical' && sim.zone !== 'danger') logEvent(sim, 'danger', `Critical: ${shown.reason}`)
+        // every escalation is an alert on the tablet; only Critical is pushed to the supervisor
+        if (RISK_RANK[shown.level] > RISK_RANK[prev?.level ?? 'safe']) {
+          sim.alerts.total += 1
+          if (shown.level === 'critical') {
+            sim.alerts.pushed += 1
+            setPush({ id: sim.t, time: siteClock(sim), reason: shown.reason, ...sim.alerts })
+            markTimeline(sim, sim.zone === 'danger' ? 'worker' : sim.haltReason === 'seatbelt' ? 'restart_guard' : 'critical', `Critical: ${shown.reason}`)
+          } else if (!budgetNoted.current && sim.events[0]) {
+            budgetNoted.current = true
+            setBudgetNoteFor(sim.events[0].id)
+          }
+        }
       }
       blackbox.current.push({ t: sim.t, dist: sim.workerDist, zone: sim.zone, working: sim.working, belt: sim.seatbelt, truck: sim.truckPresent })
       blackbox.current = blackbox.current.slice(-240)
@@ -270,6 +300,7 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
         void _drop
         setReport({ transcript: text, structured: fields, live, blackbox: box.filter((_, i) => i % 20 === 0).slice(-6) })
         logEvent(sim, 'warn', `Near-miss reported by voice${live ? ' · LLM structured' : ''}. Black box attached.`)
+        markTimeline(sim, 'near_miss', `Near-miss reported by voice: ${String(fields.category ?? 'Other').toLowerCase()}`)
       }
       // the LLM only formats what the operator said and the real black-box distance; it never decides
       structureIncident({ transcript: text, machine_model: machine.model, machine_id: machine.id, operator_id: operator.id, machine_state: machineState, min_dist_m: minDist })
@@ -368,6 +399,8 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
             </div>
           )}
 
+          <SupervisorPush push={push} onDone={clearPush} />
+
           <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-2">
             {showScenarios ? (
               <>
@@ -461,9 +494,16 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
               <div className="mb-2"><OutcomeTag>Incident logging</OutcomeTag></div>
               <ul className="space-y-2">
                 {snap.events.map((e) => (
-                  <li key={e.id} className="flex gap-2.5 text-[13px]">
-                    <span className="font-mono text-fg-3">{e.time}</span>
-                    <span className={e.level === 'danger' ? 'text-critical-text' : e.level === 'warn' ? 'text-warning-text' : 'text-fg-2'}>{e.text}</span>
+                  <li key={e.id} className="text-[13px]">
+                    <div className="flex gap-2.5">
+                      <span className="font-mono text-fg-3">{e.time}</span>
+                      <span className={e.level === 'danger' ? 'text-critical-text' : e.level === 'warn' ? 'text-warning-text' : 'text-fg-2'}>{e.text}</span>
+                    </div>
+                    {e.id === budgetNoteFor && (
+                      <div className="mt-1 flex items-center gap-1.5 pl-[3.1rem] text-[12px] text-fg-3">
+                        <BellOff size={12} aria-hidden /> Not pushed · kept on the tablet (alert budget)
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
