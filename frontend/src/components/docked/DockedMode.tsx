@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { toast } from 'sonner'
 import {
-  ArrowDownToLine, ArrowUpToLine, BellOff, Box, CircleDashed, CircleHelp, X, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
+  ArrowDownToLine, ArrowUpToLine, BellOff, Box, CircleDashed, CircleHelp, Volume2, VolumeX, X, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
   Thermometer, Timer, TriangleAlert, Truck, Unplug, UserRound, Armchair, type LucideIcon,
 } from 'lucide-react'
 import SiteScene from './SiteScene'
@@ -12,6 +12,7 @@ import { useApp } from '@/store/app'
 import type { StoryCommand } from '@/lib/story'
 import { hourly, machine, operator } from '@/data/demo'
 import { classifyIdle, scoreBehaviour, scoreTwin, structureIncident } from '@/lib/api'
+import { sayNow } from '@/lib/voice'
 import { fuseRisk, latchRisk, RISK_RANK, type RiskLatch } from '@/lib/risk'
 import { incidentRules, OFFLINE_SOURCES, type FieldSource } from '@/lib/incident'
 import { DIESEL_INR, IDLE_BURN_LPH, SIM_SPEED, logEvent, markTimeline, recordTimeline, siteClock, type Sim } from '@/lib/sim'
@@ -58,12 +59,12 @@ function SourceMark({ source }: { source: FieldSource }) {
 /** ISO-style tell-tale: icon + label + state, never colour alone. */
 function Telltale({ icon: Icon, label, state, tone }: { icon: LucideIcon; label: string; state: string; tone: Tone }) {
   return (
-    <div className={cn('flex h-12 items-center gap-2.5 rounded-md border px-3',
+    <div className={cn('flex h-12 items-center gap-2 rounded-md border px-2.5',
       tone === 'critical' ? 'border-critical bg-critical-soft' : tone === 'warning' ? 'border-warning/60 bg-warning-soft' : 'border-border bg-surface-2')}>
       <Icon size={18} className={TONE_TEXT[tone]} aria-hidden />
       <div className="leading-tight">
-        <div className="label-caps text-[10px] text-fg-3">{label}</div>
-        <div className={cn('text-sm font-semibold', TONE_TEXT[tone])}>{state}</div>
+        <div className="label-caps hidden text-[10px] text-fg-3 2xl:block">{label}</div>
+        <div className={cn('text-sm font-semibold whitespace-nowrap', TONE_TEXT[tone])}><span className="sr-only 2xl:hidden">{label}: </span>{state}</div>
       </div>
     </div>
   )
@@ -117,14 +118,14 @@ function RiskLamp({ risk }: { risk: RiskState }) {
   const Icon = cfg.icon
   return (
     <div role={risk.level === 'critical' ? 'alert' : 'status'} aria-live="polite"
-      className={cn('flex h-12 min-w-0 flex-1 items-center gap-3 rounded-md border px-3', cfg.cls)}>
+      className={cn('flex h-[52px] min-w-0 flex-1 items-center gap-3 rounded-md border px-3', cfg.cls)}>
       <span className="relative flex shrink-0">
         {risk.level === 'critical' && <span className="absolute inset-0 rounded-full bg-white/60" style={{ animation: 'var(--animate-pulse-ring)' }} aria-hidden />}
         <Icon size={22} strokeWidth={2.4} className="relative" aria-hidden />
       </span>
       <span className="shrink-0 font-display text-[22px] leading-none font-bold tracking-wide uppercase">{cfg.label}</span>
-      <span className="h-6 w-px shrink-0 bg-current opacity-30" aria-hidden />
-      <span className="min-w-0 truncate text-[14px] font-medium leading-tight" title={risk.reason}>{risk.reason}</span>
+      <span className="h-7 w-px shrink-0 bg-current opacity-30" aria-hidden />
+      <span className="line-clamp-2 min-w-0 text-[13px] leading-[1.2] font-medium" title={risk.reason}>{risk.reason}</span>
     </div>
   )
 }
@@ -223,6 +224,18 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
     return () => clearInterval(id)
   }, [sim])
 
+  // spoken alerts: the operator's eyes are on the bucket, not the screen
+  const [voiceOn, setVoiceOn] = useState(true)
+  const voiceRef = useRef(voiceOn)
+  voiceRef.current = voiceOn
+  const lastSpoken = useRef('')
+  useEffect(() => {
+    if (!voiceRef.current || risk.level !== 'critical') { if (risk.level !== 'critical') lastSpoken.current = ''; return }
+    const line = /swing radius|Worker/i.test(risk.reason) ? 'Stop. Person in the swing radius.'
+      : /Seatbelt/i.test(risk.reason) ? 'Seatbelt. Fasten before restart.' : 'Critical. Check the display.'
+    if (line !== lastSpoken.current) { lastSpoken.current = line; sayNow(line) }
+  }, [risk])
+
   // idle reason from the ML model, once per idle episode
   const isIdle = snap.engineOn && !snap.working && !snap.truckPresent
   useEffect(() => {
@@ -279,6 +292,14 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
   const behFlag = twin ? twin.unusual : !!beh && (beh.unusual || beh.reasons.length > 0)
 
   const etaMin = (snap.nextTruckEtaSec * SIM_SPEED) / 60
+  const showNudge = isIdle && !!idle && etaMin > 3 && snap.engineOn
+  const nudged = useRef(false)
+  useEffect(() => {
+    if (!showNudge) { if (!isIdle) nudged.current = false; return }
+    if (nudged.current || !voiceRef.current) return
+    nudged.current = true
+    sayNow(`Next truck in ${Math.round(etaMin)} minutes. Switch off to save fuel.`)
+  }, [showNudge, isIdle, etaMin])
   const idleMin = snap.idleSec / 60
   const rpm = !snap.engineOn ? 0 : snap.working ? 1750 : 1000
 
@@ -392,17 +413,21 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
         <div className={cn('flex h-12 shrink-0 items-center gap-2.5 rounded-md border px-4 text-[15px] font-medium',
           snap.truckPresent ? 'border-good/50 bg-good-soft text-good-text' : 'border-border bg-surface-2 text-fg')}>
           <Truck size={18} aria-hidden />
-          {snap.truckPresent ? 'Dumper T-07 at Bay 2 · loading' : <>Next dumper T-03 in <b className="font-mono">{etaMin.toFixed(1)} min</b></>}
+          {snap.truckPresent ? <>T-07 loading <span className="hidden 2xl:inline">· Bay 2</span></> : <>Next truck <b className="font-mono">{etaMin.toFixed(1)} min</b></>}
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Telltale icon={Armchair} label="Seatbelt" state={snap.seatbelt ? 'Fastened' : 'OFF'} tone={snap.seatbelt ? 'good' : 'critical'} />
+          <Telltale icon={Armchair} label="Seatbelt" state={snap.seatbelt ? 'Belt on' : 'Belt OFF'} tone={snap.seatbelt ? 'good' : 'critical'} />
           <Telltale icon={CircleDashed} label="Swing zone" state={zone.label} tone={zone.tone} />
         </div>
         <div className="hidden px-2 text-right xl:block">
           <div className="font-mono text-[26px] leading-none font-medium tabular">{siteClock(snap)}</div>
           <div className="label-caps text-[10px] text-fg-3">site time</div>
         </div>
+        <Button variant="ghost" size="icon" onClick={() => { setVoiceOn((v) => !v); window.speechSynthesis?.cancel() }}
+          aria-pressed={voiceOn} aria-label={voiceOn ? 'Mute voice alerts' : 'Turn voice alerts on'}>
+          {voiceOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+        </Button>
         <Button variant={helpOpen ? 'inverse' : 'secondary'} size="md" onClick={() => (helpOpen ? closeHelp() : setHelpOpen(true))}
           aria-expanded={helpOpen} aria-label="Help and how-to videos (?)"><CircleHelp size={18} /> Help</Button>
         <Button variant="secondary" size="md" onClick={() => { sim.focus = null; onUndock() }}><Unplug size={17} /> Undock</Button>

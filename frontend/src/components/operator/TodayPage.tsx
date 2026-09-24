@@ -19,9 +19,9 @@ export function TodayPage() {
     <div className="stagger space-y-6">
       <PageHeader
         eyebrow={`WED 23 SEP · ${operator.site.toUpperCase()}`}
-        title={`Good morning, ${firstName(operator.name)}`}
+        title={today ? `Good evening, ${firstName(operator.name)}` : `Good morning, ${firstName(operator.name)}`}
         meta={<>
-          <StatusBadge tone="good" icon={Clock}>Clocked in 06:52</StatusBadge>
+          <StatusBadge tone="good" icon={Clock}>{today ? 'Shift done · clock out 19:04' : 'Clocked in 06:52'}</StatusBadge>
           <span>Shift {operator.shift} · {tasks.length} tasks · first at {tasks[0].start}</span>
         </>}
         actions={<Button variant="ghost" onClick={() => setBriefingOpen(true)}><Volume2 size={17} /> Replay briefing</Button>}
