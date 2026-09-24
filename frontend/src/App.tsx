@@ -133,5 +133,5 @@ export default function App() {
         : intro ? <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={finishBriefing} /></Suspense>
           : <AppShell><Page /></AppShell>
   const card = storyOn ? CHAPTERS[storyIndex]?.card : undefined
-  return <>{screen}{card && <StoryCard kind={card} />}<StoryBar ctx={story} hidden={intro} /></>
+  return <>{screen}{card && <StoryCard kind={card} />}<StoryBar ctx={story} hidden={intro && !card} /></>
 }
