@@ -36,9 +36,9 @@ Demo scope: one operator (Ravi, OP1001) on one machine (Cat 320 excavator, EXC00
 | Supervisor push with an alert budget: Critical goes to the supervisor's phone, Caution stays on the tablet | Safety features | `docked/SupervisorPush.tsx` |
 | "Your day" timeline at the end of shift: working, waiting, avoidable idle, engine off, halted, with events | Unusual behaviour, operator training hub | recorded from the sim on state changes (`lib/sim.ts`) |
 | Spoken in-cab alerts (swing radius, restart guard, switch-off nudge), mutable | Safety features | browser speech (`lib/voice.ts`) |
-| Story mode for presenting: 14 chapters of Ravi's day, each setting up the exact state to narrate; subtitles | (presentation) | `lib/story.ts`, `shared/StoryBar.tsx`, see `DEMO_SCRIPT.md` |
+| Story mode for presenting: 24 chapters mixing full-screen slides (problem, what exists, data flow, models, how the AI works, stack, design, impact, roadmap) with Ravi's day live on the tablet; each app chapter shows the question it answers and the data it joins | (presentation) | `lib/story.ts`, `shared/StorySlide.tsx`, `shared/StoryBar.tsx`, see `DEMO_SCRIPT.md` |
 
-**Presenting:** open `http://localhost:5173/?story` and follow [DEMO_SCRIPT.md](DEMO_SCRIPT.md). The `tablet-frame` branch runs the whole app inside a rugged tablet mockup (`F` toggles it).
+**Presenting:** open `http://localhost:5173/?story` and follow [DEMO_SCRIPT.md](DEMO_SCRIPT.md). The app runs inside a rugged tablet mockup on a light stage (`F` toggles it).
 | Shift Copilot: at most 5 ranked actions for the operator's day, each joining 2+ sources (plan, forecast, site hazards, health and fuel models, his twin, yesterday's events) | Daily task dashboard, safety features | `ml/insights.py`, `POST /insights`, `operator/ShiftCopilot.tsx` |
 | Site Copilot: at most 5 decisions for the supervisor, each with an owner and "if nobody acts", plus a one-line site status | All five | `ml/insights.py`, `GET /insights/site`, `fleet/SiteCopilot.tsx` |
 | Operator ↔ supervisor messages ("Tell supervisor", "Send to operator") and an in-cab "next best action" | Safety features, incident logging | `/inbox`, `lib/liveInsights.ts` |

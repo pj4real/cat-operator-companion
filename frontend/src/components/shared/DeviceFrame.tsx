@@ -62,7 +62,7 @@ export function DeviceFrame({ children, enabled, docked, cover, bottomReserve = 
   const [s, x, y] = cover ? [cs, cx, cy] : [fit, fx, fy]
 
   return (
-    <div className="fixed inset-0 overflow-hidden" style={{ background: 'radial-gradient(120% 90% at 50% 20%, #1c2027 0%, #0a0b0d 60%, #060708 100%)' }}>
+    <div className="fixed inset-0 overflow-hidden" style={{ background: 'radial-gradient(110% 85% at 50% 15%, #ffffff 0%, #f4f3ee 55%, #e7e5dd 100%)' }}>
       <div
         className="absolute top-0 left-0 origin-top-left"
         style={{
@@ -77,7 +77,7 @@ export function DeviceFrame({ children, enabled, docked, cover, bottomReserve = 
           style={{
             width: OUTER_W, height: OUTER_H,
             background: 'linear-gradient(180deg, #25282d 0%, #16181b 100%)',
-            boxShadow: '0 0 0 1.5px #0b0c0e, inset 0 1px 0 rgb(255 255 255 / 0.08), 0 50px 120px -30px rgb(0 0 0 / 0.9), 0 20px 40px -20px rgb(0 0 0 / 0.8)',
+            boxShadow: '0 0 0 1.5px #0b0c0e, inset 0 1px 0 rgb(255 255 255 / 0.08), 0 60px 120px -40px rgb(17 18 20 / 0.55), 0 24px 48px -24px rgb(17 18 20 / 0.45)',
           }}>
           {[[0, 0], [1, 0], [0, 1], [1, 1]].map(([r, b]) => (
             <span key={`${r}${b}`} aria-hidden className="absolute h-[92px] w-[92px] bg-[#101114]"

@@ -18,7 +18,7 @@ import { DockTransition } from '@/components/docked/DockTransition'
 import { DockedMode } from '@/components/docked/DockedMode'
 import { StoryBar } from '@/components/shared/StoryBar'
 import { DeviceFrame, usePullBack } from '@/components/shared/DeviceFrame'
-import { StoryCard } from '@/components/shared/StoryCard'
+import { StorySlide } from '@/components/shared/StorySlide'
 import { CHAPTERS } from '@/lib/story'
 import type { StoryContext } from '@/lib/story'
 
@@ -153,15 +153,18 @@ export default function App() {
       : device === 'docked' ? <DockedMode sim={sim.current} onUndock={undock} />
         : intro ? <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={finishBriefing} /></Suspense>
           : <AppShell><Page /></AppShell>
-  const card = storyOn ? CHAPTERS[storyIndex]?.card : undefined
-  const storyBar = <StoryBar ctx={story} hidden={intro && !card} />
-  const storyCard = card ? <StoryCard kind={card} /> : null
+  const chapter = storyOn ? CHAPTERS[storyIndex] : undefined
+  const slide = chapter?.slide
+  // app chapters show a question card under the tablet; slides only need the chapter bar
+  const reserve = !storyOn ? 18 : slide || !captionsOn ? 64 : chapter?.question ? 196 : 112
+  const storyBar = <StoryBar ctx={story} hidden={intro && !slide} />
+  const storySlide = slide ? <StorySlide kind={slide} index={storyIndex} bottomReserve={64} /> : null
   // the briefing plays full-screen; when it ends, the app pulls back into the tablet
-  if (intro) return <>{screen}{storyCard}{storyBar}</>
+  if (intro) return <>{screen}{storySlide}{storyBar}</>
   return (
     <DeviceFrame enabled={frame} docked={device !== 'handheld'} cover={pullingBack}
-      bottomReserve={storyOn ? (captionsOn ? 112 : 64) : 18}
-      overlay={<>{storyCard}{storyBar}</>}>
+      bottomReserve={reserve}
+      overlay={<>{storySlide}{storyBar}</>}>
       {screen}
       <Toaster position="bottom-right" closeButton />
     </DeviceFrame>
