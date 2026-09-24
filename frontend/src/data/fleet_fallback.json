@@ -3,10 +3,11 @@
  "kpis": {
   "utilization_pct": 78,
   "idle_pct": 22,
-  "idle_justified_pct": 73,
-  "idle_waste_h": 3.0,
-  "fuel_used_l": 643,
-  "co2_kg": 1723,
+  "idle_justified_pct": 65,
+  "idle_waste_h": 3.9,
+  "fuel_used_l": 670,
+  "co2_kg": 1797,
+  "fuel_basis": "fuel-rate model L/h x working hours + 3.8 L/h idle",
   "seatbelt_violations": 7,
   "cycles": 863
  },
@@ -36,14 +37,17 @@
     }
    ],
    "idle_min": 148,
-   "idle_waste_min": 33,
+   "idle_waste_min": 30,
    "idle_by_reason": {
-    "waiting_for_truck": 62,
-    "heat_rest": 40,
-    "warm_up": 9,
-    "cool_down": 4,
-    "waste": 33
+    "waiting_for_truck": 74,
+    "heat_rest": 30,
+    "warm_up": 5,
+    "cool_down": 10,
+    "waste": 30
    },
+   "idle_by_reason_source": "idle-reason model on 5-min windows",
+   "work_lph": 12.4,
+   "fuel_used_l": 85.0,
    "fuel_pct": 9,
    "health": {
     "risk_pct": 45,
@@ -80,7 +84,7 @@
    },
    "behaviour": {
     "unusual": true,
-    "score": 0.676,
+    "score": 0.685,
     "reasons": [
      "Idle 55 min with only 2 load cycles (usual 18 min)",
      "Seatbelt off for 30 min while engine running"
@@ -145,14 +149,17 @@
    "seatbelt_violations": 0,
    "faults": [],
    "idle_min": 103,
-   "idle_waste_min": 12,
+   "idle_waste_min": 25,
    "idle_by_reason": {
-    "waiting_for_truck": 38,
-    "heat_rest": 40,
-    "warm_up": 8,
-    "cool_down": 5,
-    "waste": 12
+    "waiting_for_truck": 39,
+    "heat_rest": 10,
+    "warm_up": 20,
+    "cool_down": 10,
+    "waste": 25
    },
+   "idle_by_reason_source": "idle-reason model on 5-min windows",
+   "work_lph": 18.8,
+   "fuel_used_l": 145.6,
    "fuel_pct": 59,
    "health": {
     "risk_pct": 5,
@@ -227,14 +234,17 @@
     }
    ],
    "idle_min": 132,
-   "idle_waste_min": 21,
+   "idle_waste_min": 51,
    "idle_by_reason": {
-    "waiting_for_truck": 55,
-    "heat_rest": 40,
-    "warm_up": 10,
-    "cool_down": 6,
-    "waste": 21
+    "waiting_for_truck": 41,
+    "heat_rest": 5,
+    "warm_up": 30,
+    "cool_down": 5,
+    "waste": 51
    },
+   "idle_by_reason_source": "idle-reason model on 5-min windows",
+   "work_lph": 16.1,
+   "fuel_used_l": 117.6,
    "fuel_pct": 55,
    "health": {
     "risk_pct": 79,
@@ -279,7 +289,7 @@
    },
    "behaviour": {
     "unusual": true,
-    "score": 0.636,
+    "score": 0.645,
     "reasons": [
      "7 harsh swings this hour (usual 1)",
      "Travelling with bucket raised"
@@ -334,14 +344,17 @@
     }
    ],
    "idle_min": 69,
-   "idle_waste_min": 18,
+   "idle_waste_min": 25,
    "idle_by_reason": {
-    "waiting_for_truck": 0,
-    "heat_rest": 40,
-    "warm_up": 7,
-    "cool_down": 4,
-    "waste": 18
+    "waiting_for_truck": 15,
+    "heat_rest": 15,
+    "warm_up": 5,
+    "cool_down": 10,
+    "waste": 25
    },
+   "idle_by_reason_source": "idle-reason model on 5-min windows",
+   "work_lph": 17.4,
+   "fuel_used_l": 141.7,
    "fuel_pct": 60,
    "health": {
     "risk_pct": 88,
@@ -377,7 +390,7 @@
    },
    "behaviour": {
     "unusual": false,
-    "score": 0.536,
+    "score": 0.555,
     "reasons": []
    },
    "twin": {
@@ -413,14 +426,17 @@
    "seatbelt_violations": 0,
    "faults": [],
    "idle_min": 60,
-   "idle_waste_min": 9,
+   "idle_waste_min": 35,
    "idle_by_reason": {
-    "waiting_for_truck": 0,
-    "heat_rest": 40,
-    "warm_up": 6,
-    "cool_down": 5,
-    "waste": 9
+    "waiting_for_truck": 15,
+    "heat_rest": 0,
+    "warm_up": 10,
+    "cool_down": 0,
+    "waste": 35
    },
+   "idle_by_reason_source": "idle-reason model on 5-min windows",
+   "work_lph": 16.5,
+   "fuel_used_l": 129.3,
    "fuel_pct": 49,
    "health": {
     "risk_pct": 5,
@@ -439,7 +455,7 @@
    },
    "behaviour": {
     "unusual": false,
-    "score": 0.537,
+    "score": 0.553,
     "reasons": []
    },
    "twin": {
@@ -481,14 +497,17 @@
     }
    ],
    "idle_min": 163,
-   "idle_waste_min": 88,
+   "idle_waste_min": 69,
    "idle_by_reason": {
-    "waiting_for_truck": 20,
-    "heat_rest": 40,
-    "warm_up": 12,
-    "cool_down": 3,
-    "waste": 88
+    "waiting_for_truck": 5,
+    "heat_rest": 49,
+    "warm_up": 20,
+    "cool_down": 20,
+    "waste": 69
    },
+   "idle_by_reason_source": "idle-reason model on 5-min windows",
+   "work_lph": 9.7,
+   "fuel_used_l": 51.2,
    "fuel_pct": 34,
    "health": {
     "risk_pct": 82,
@@ -533,7 +552,7 @@
    },
    "behaviour": {
     "unusual": true,
-    "score": 0.735,
+    "score": 0.734,
     "reasons": [
      "Idle 58 min with only 1 load cycles (usual 18 min)",
      "Seatbelt off for 41 min while engine running"
@@ -672,7 +691,7 @@
    "seatbelt": "Fastened",
    "alert": "No",
    "unusual": false,
-   "score": 0.402,
+   "score": 0.395,
    "reasons": [],
    "twin_unusual": false,
    "twin_reasons": []
@@ -685,7 +704,7 @@
    "seatbelt": "Unfastened",
    "alert": "Yes",
    "unusual": true,
-   "score": 0.676,
+   "score": 0.685,
    "reasons": [
     "Idle 55 min with only 2 load cycles (usual 18 min)",
     "Seatbelt off for 30 min while engine running"
@@ -718,7 +737,7 @@
    "seatbelt": "Unfastened",
    "alert": "Yes",
    "unusual": true,
-   "score": 0.711,
+   "score": 0.729,
    "reasons": [
     "Idle 60 min with only 1 load cycles (usual 18 min)",
     "Seatbelt off for 30 min while engine running"

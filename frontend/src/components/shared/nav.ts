@@ -35,6 +35,9 @@ export const NAV: Record<Workspace, NavGroup[]> = {
 
 export const WORKSPACE_LABEL: Record<Workspace, string> = { operator: 'Operator', supervisor: 'Supervisor' }
 
+/** Pages reached from inside another page (not in the sidebar), still named in breadcrumbs. */
+const FLOW_LABEL: Partial<Record<Page, string>> = { walkaround: 'Pre-start walkaround' }
+
 export function pageLabel(workspace: Workspace, page: Page) {
-  return NAV[workspace].flatMap((g) => g.items).find((i) => i.page === page)?.label ?? ''
+  return NAV[workspace].flatMap((g) => g.items).find((i) => i.page === page)?.label ?? FLOW_LABEL[page] ?? ''
 }

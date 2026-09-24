@@ -94,3 +94,17 @@ function browserSpeak(text: string, lang: string, onAmplitude?: AmpFn) {
     setTimeout(done, Math.max(1500, text.length * 65))
   })
 }
+
+/**
+ * Short in-cab voice alert: the browser's own voice, so it is instant and works offline.
+ * A new alert replaces one still speaking (the latest state is what matters).
+ */
+export function sayNow(text: string) {
+  const synth = window.speechSynthesis
+  if (!synth) return
+  synth.cancel()
+  const u = new SpeechSynthesisUtterance(text)
+  u.lang = 'en-IN'
+  u.rate = 1.02
+  synth.speak(u)
+}

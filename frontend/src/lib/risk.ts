@@ -26,7 +26,7 @@ export function fuseRisk(s: RiskInput): RiskState {
   const again = (n: number) => (n > 1 ? ` · ${ordinal(n)} time today` : '')
 
   if (s.zone === 'danger')
-    return { level: 'critical', reason: `Worker ${s.workerDist.toFixed(0)} m away, inside the 7 m swing radius · swing held${again(swingEntries)}` }
+    return { level: 'critical', reason: `Worker ${s.workerDist.toFixed(0)} m away, inside the swing radius. Swing held${again(swingEntries)}` }
   if (!s.seatbelt && s.engineOn && (s.working || s.truckPresent))
     return { level: 'critical', reason: `Seatbelt off as work restarts after ${s.idleMin.toFixed(0)} min idle${again(beltEvents)}` }
   if (s.zone === 'caution' && !s.seatbelt)

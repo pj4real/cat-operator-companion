@@ -105,7 +105,21 @@ export interface ShiftSummary {
   beltOffMin: number
   events: SimEvent[]
   lessons: Lesson[]
+  /** what the machine was doing, minute by minute, while docked (see lib/sim.ts recordTimeline) */
+  timeline?: TimelineItem[]
+  /** site minutes the engine was off while waiting for a truck (the switch-off nudge) */
+  engineOffWaitMin?: number
+  /** alert budget: alerts raised on the tablet vs the ones pushed to the supervisor's phone */
+  alerts?: { total: number; pushed: number }
 }
+
+/** What the machine was doing. `waiting` = justified idle (truck ≤ 3 min away), `idle` = avoidable idle. */
+export type DayState = 'working' | 'waiting' | 'idle' | 'off' | 'halted'
+export type DayMark = 'critical' | 'restart_guard' | 'worker' | 'belt_off' | 'near_miss' | 'engine_off'
+/** Times are site minutes after 09:00. Segments are appended only when the state changes. */
+export type TimelineItem =
+  | { kind: 'seg'; state: DayState; start: number; end: number }
+  | { kind: 'mark'; mark: DayMark; at: number; text: string }
 
 export interface Lesson { title: string; from: string; mins: number; done?: boolean }
 
@@ -130,6 +144,9 @@ export interface FleetMachine {
   idle_min: number
   idle_waste_min: number
   idle_by_reason: Partial<Record<IdleReason, number>>
+  idle_by_reason_source?: string
+  work_lph?: number
+  fuel_used_l?: number
   health: HealthResult
   fuel_plan: FuelPlan
   behaviour: BehaviourResult
@@ -161,6 +178,7 @@ export interface FleetData {
     idle_waste_h: number
     fuel_used_l: number
     co2_kg: number
+    fuel_basis?: string
     seatbelt_violations: number
     cycles: number
   }

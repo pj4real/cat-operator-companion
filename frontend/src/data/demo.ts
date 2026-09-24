@@ -44,20 +44,20 @@ export const tasks: Task[] = [
     id: 'T101', title: 'Trenching for OFC duct, Zone B', zone: 'B', start: '07:30',
     input: { task_type: 'Trenching', weather: 'Cloudy', operator_skill: 'Intermediate', soil: 'Clay',
       machine_age_yrs: 4, ambient_temp_c: 31, volume_m3: 110, planner_estimate_min: 50 },
-    fallback: { p10: 58, p50: 64, p90: 71, reasons: [{ factor: 'Soil', value: 'Clay', minutes: 8 }] },
+    fallback: { p10: 55, p50: 61, p90: 77, reasons: [{ factor: 'Operator skill', value: 'Intermediate', minutes: 7 }, { factor: 'Soil', value: 'Clay', minutes: 7 }] },
     note: 'Moved before 13:00 rain',
   },
   {
     id: 'T102', title: 'Load spoil into dumpers, Bay 2', zone: 'A', start: '09:00',
     input: { task_type: 'Material Loading', weather: 'Sunny', operator_skill: 'Intermediate', soil: 'Loam',
       machine_age_yrs: 4, ambient_temp_c: 36, volume_m3: 180, planner_estimate_min: 50 },
-    fallback: { p10: 52, p50: 57, p90: 63, reasons: [{ factor: 'Operator skill', value: 'Intermediate', minutes: 5 }] },
+    fallback: { p10: 49, p50: 55, p90: 70, reasons: [{ factor: 'Operator skill', value: 'Intermediate', minutes: 7 }] },
   },
   {
     id: 'T103', title: 'Grade shoulder, chainage 4+200', zone: 'C', start: '14:30',
     input: { task_type: 'Grading', weather: 'Rainy', operator_skill: 'Intermediate', soil: 'Loam',
       machine_age_yrs: 4, ambient_temp_c: 29, volume_m3: 120, planner_estimate_min: 42 },
-    fallback: { p10: 48, p50: 54, p90: 61, reasons: [{ factor: 'Weather', value: 'Rainy', minutes: 7 }] },
+    fallback: { p10: 44, p50: 53, p90: 62, reasons: [{ factor: 'Weather', value: 'Rainy', minutes: 5 }, { factor: 'Operator skill', value: 'Intermediate', minutes: 5 }] },
     note: 'Rain likely 13:00–15:00',
   },
 ]
@@ -85,13 +85,15 @@ export const weeklyStats = {
   incidentsThisWeek: 0,
 }
 
-// idle minutes by ML-classified reason, this week -- feeds the idle-reason donut
+// Share of idle minutes by reason, EXC001 this week (Mon-Thu). Cached output of the idle-reason model:
+// ml/api.py idle_split() over 4 days x 150 idle min in 5-min windows, 07:00-19:00, seeds crc32('EXC001')+1..4.
+// The window contexts are simulated; the labels are the model's. Re-run and paste to refresh.
 export const idleBreakdown = [
-  { reason: 'Waiting for truck', pct: 44 },
-  { reason: 'Heat rest', pct: 19 },
-  { reason: 'Warm-up', pct: 13 },
-  { reason: 'Cool-down', pct: 9 },
-  { reason: 'No reason found', pct: 15 },
+  { reason: 'Waiting for truck', pct: 38 },
+  { reason: 'Heat rest', pct: 22 },
+  { reason: 'Warm-up', pct: 8 },
+  { reason: 'Cool-down', pct: 6 },
+  { reason: 'No reason found', pct: 27 },
 ]
 
 // simplified top-down site layout for the map widget (viewBox 0 0 100 60).

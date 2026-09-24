@@ -12,9 +12,14 @@ import { SafetyPage } from '@/components/operator/SafetyPage'
 import { TrainingPage } from '@/components/operator/TrainingPage'
 import { ActivityPage } from '@/components/operator/ActivityPage'
 import { TwinPage } from '@/components/operator/TwinPage'
+import { WalkaroundPage } from '@/components/operator/WalkaroundPage'
 import { FleetOverviewPage, TelemetryAuditPage } from '@/components/fleet/FleetPages'
 import { DockTransition } from '@/components/docked/DockTransition'
 import { DockedMode } from '@/components/docked/DockedMode'
+import { StoryBar } from '@/components/shared/StoryBar'
+import { StoryCard } from '@/components/shared/StoryCard'
+import { CHAPTERS } from '@/lib/story'
+import type { StoryContext } from '@/lib/story'
 
 // The voice briefing's three.js orb loads on demand. The docked display is imported normally:
 // its 3D labels (drei <Html>) run their own React roots and break when mounted under a Suspense boundary.
@@ -42,6 +47,10 @@ function summarise(s: Sim): ShiftSummary {
     beltOffMin: s.seatbeltOffSec / 60,
     events: s.events.filter((e) => e.level !== 'ok'),
     lessons: shiftLessons(s),
+    // a copy, so the summary on Today stays fixed if Ravi docks again
+    timeline: s.timeline.map((it) => ({ ...it })),
+    engineOffWaitMin: s.engineOffWaitSec / 60,
+    alerts: { ...s.alerts },
   }
 }
 
@@ -51,12 +60,13 @@ const PAGES = {
   training: TrainingPage,
   activity: ActivityPage,
   twin: TwinPage,
+  walkaround: WalkaroundPage,
   overview: FleetOverviewPage,
   telemetry: TelemetryAuditPage,
 }
 
 export default function App() {
-  const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl } = useApp()
+  const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl, storyOn, storyIndex } = useApp()
   const sim = useRef<Sim>(createSim())
   const queryClient = useQueryClient()
 
@@ -97,10 +107,31 @@ export default function App() {
       .catch(() => { /* offline: the shift is kept on the tablet and synced later */ })
   }
 
-  if (device === 'docking') return <DockTransition onDone={dockDone} />
-  if (device === 'docked') return <DockedMode sim={sim.current} onUndock={undock} />
-  if (briefingOpen && page === 'today') return <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={() => setBriefingOpen(false)} /></Suspense>
+  const story: StoryContext = {
+    sim: sim.current,
+    navigate,
+    setBriefingOpen,
+    dock: (instant) => {
+      if (!instant) { setDevice('docking'); return }
+      logEvent(sim.current, 'ok', 'Docked to EXC001. Limits from site data accepted.')
+      setDevice('docked')
+    },
+    undock,
+    isDocked: () => useApp.getState().device !== 'handheld',
+  }
+  const finishBriefing = () => {
+    setBriefingOpen(false)
+    const st = useApp.getState()
+    if (st.storyOn && CHAPTERS[st.storyIndex]?.title === 'Morning briefing') st.setStory(true, st.storyIndex + 1)
+  }
 
   const Page = PAGES[page]
-  return <AppShell><Page /></AppShell>
+  const intro = briefingOpen && page === 'today' && device === 'handheld'
+  const screen =
+    device === 'docking' ? <DockTransition onDone={dockDone} />
+      : device === 'docked' ? <DockedMode sim={sim.current} onUndock={undock} />
+        : intro ? <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={finishBriefing} /></Suspense>
+          : <AppShell><Page /></AppShell>
+  const card = storyOn ? CHAPTERS[storyIndex]?.card : undefined
+  return <>{screen}{card && <StoryCard kind={card} />}<StoryBar ctx={story} hidden={intro && !card} /></>
 }
