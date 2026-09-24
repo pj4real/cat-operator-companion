@@ -154,13 +154,14 @@ export default function App() {
         : intro ? <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={finishBriefing} /></Suspense>
           : <AppShell><Page /></AppShell>
   const card = storyOn ? CHAPTERS[storyIndex]?.card : undefined
-  const storyBar = <StoryBar ctx={story} hidden={intro} />
+  const storyBar = <StoryBar ctx={story} hidden={intro && !card} />
+  const storyCard = card ? <StoryCard kind={card} /> : null
   // the briefing plays full-screen; when it ends, the app pulls back into the tablet
-  if (intro) return <>{screen}{storyBar}</>
+  if (intro) return <>{screen}{storyCard}{storyBar}</>
   return (
     <DeviceFrame enabled={frame} docked={device !== 'handheld'} cover={pullingBack}
       bottomReserve={storyOn ? (captionsOn ? 130 : 76) : 24}
-      overlay={<>{card && <StoryCard kind={card} />}{storyBar}</>}>
+      overlay={<>{storyCard}{storyBar}</>}>
       {screen}
       <Toaster position="bottom-right" closeButton />
     </DeviceFrame>
