@@ -386,6 +386,7 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
 
   // story mode drives the cab: close the first-run dialog, start the voice report, open a help guide
   const storyOn = useApp((st) => st.storyOn)
+  const frame = useApp((st) => st.frame)
   useEffect(() => {
     const onStory = (e: Event) => {
       const cmd = (e as CustomEvent<StoryCommand>).detail
@@ -483,7 +484,7 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
             </div>
           )}
 
-          <SupervisorPush push={push} onDone={clearPush} raised={storyOn} />
+          <SupervisorPush push={push} onDone={clearPush} raised={storyOn && !frame} />
 
           <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-2">
             {storyOn ? null : showScenarios ? (

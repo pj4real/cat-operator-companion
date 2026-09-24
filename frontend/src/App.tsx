@@ -1,6 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { toast, Toaster } from 'sonner'
 import { useApp } from '@/store/app'
 import { updateTwin } from '@/lib/api'
 import { operator } from '@/data/demo'
@@ -17,6 +17,7 @@ import { FleetOverviewPage, TelemetryAuditPage } from '@/components/fleet/FleetP
 import { DockTransition } from '@/components/docked/DockTransition'
 import { DockedMode } from '@/components/docked/DockedMode'
 import { StoryBar } from '@/components/shared/StoryBar'
+import { DeviceFrame, usePullBack } from '@/components/shared/DeviceFrame'
 import { StoryCard } from '@/components/shared/StoryCard'
 import { CHAPTERS } from '@/lib/story'
 import type { StoryContext } from '@/lib/story'
@@ -68,6 +69,26 @@ const PAGES = {
 export default function App() {
   const { device, page, theme, briefingOpen, setDevice, setToday, setBriefingOpen, navigate, syncFromUrl, storyOn, storyIndex } = useApp()
   const sim = useRef<Sim>(createSim())
+  const { frame, captionsOn, toggleFrame } = useApp()
+  // count briefing endings: each one triggers the pull-back into the device
+  const [pull, setPull] = useState(0)
+  const wasIntro = useRef(false)
+  const introNow = briefingOpen && page === 'today' && device === 'handheld'
+  useEffect(() => {
+    if (wasIntro.current && !introNow) setPull((n) => n + 1)
+    wasIntro.current = introNow
+  }, [introNow])
+  const pullingBack = usePullBack(frame ? pull : 0)
+
+  // F toggles the tablet frame (presenter shortcut)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement)?.closest('input, textarea, [role=dialog]')) return
+      if (e.key.toLowerCase() === 'f') toggleFrame()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleFrame])
   const queryClient = useQueryClient()
 
   // The in-cab display is always dark (glare, night work); the handheld follows the user's theme.
@@ -133,5 +154,16 @@ export default function App() {
         : intro ? <Suspense fallback={<div className="h-full" style={{ background: 'rgb(6,8,12)' }} />}><AssistantIntro onFinish={finishBriefing} /></Suspense>
           : <AppShell><Page /></AppShell>
   const card = storyOn ? CHAPTERS[storyIndex]?.card : undefined
-  return <>{screen}{card && <StoryCard kind={card} />}<StoryBar ctx={story} hidden={intro && !card} /></>
+  const storyBar = <StoryBar ctx={story} hidden={intro && !card} />
+  const storyCard = card ? <StoryCard kind={card} /> : null
+  // the briefing plays full-screen; when it ends, the app pulls back into the tablet
+  if (intro) return <>{screen}{storyCard}{storyBar}</>
+  return (
+    <DeviceFrame enabled={frame} docked={device !== 'handheld'} cover={pullingBack}
+      bottomReserve={storyOn ? (captionsOn ? 112 : 64) : 18}
+      overlay={<>{storyCard}{storyBar}</>}>
+      {screen}
+      <Toaster position="bottom-right" closeButton />
+    </DeviceFrame>
+  )
 }
