@@ -269,6 +269,14 @@ fleet = [
          faults=[{"code": "SVC", "severity": "medium", "text": "Oil change 85 h overdue"}],
          tasks=[task("Trenching", "Sunny", "Clay", "Beginner", 9, 36, 60, 30, "13:40")]),
 ]
+# links the Site Copilot uses to see knock-on effects: who owns a machine (a rental is a phone
+# call, not a workshop job) and which machines each dumper keeps supplied
+OWNER = {"EXC001": "Sri Balaji Earthmovers", "BHL-11": "the rental company"}
+SERVES = {"DT-03": ["EXC001", "WHL002"], "DT-07": ["EXC001", "WHL002"]}
+for m in fleet:
+    m["operator_id"] = m["operator"].split("(")[-1].rstrip(")")
+    m["owner"] = {"type": "rental", "name": OWNER[m["id"]]} if m["id"] in OWNER else {"type": "own", "name": "Own fleet"}
+    m["serves"] = SERVES.get(m["id"], [])
 (OUT / "fleet.json").write_text(json.dumps(fleet, indent=2))
 
 print(f"tasks: {len(tasks)}  idle windows: {len(idle_rows)}  shift hours: {len(hour_rows)}  "

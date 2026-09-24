@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ShiftSummary } from '@/types'
+import type { InsightState, ShiftSummary } from '@/types'
 
 export type Workspace = 'operator' | 'supervisor'
 export type OperatorPage = 'today' | 'safety' | 'training' | 'activity' | 'twin' | 'walkaround'
@@ -31,6 +31,12 @@ export interface Walkaround {
 const INTRO_KEY = 'cc_intro_done'
 function readIntro(): boolean {
   try { return sessionStorage.getItem(INTRO_KEY) !== '1' } catch { return true }
+}
+
+// Copilot item state (done / dismissed / assigned / sent) is kept for the day on this tablet
+const INSIGHT_KEY = 'cc_insights_2026-09-23'
+function readInsightState(): Record<string, InsightState> {
+  try { return JSON.parse(localStorage.getItem(INSIGHT_KEY) || '{}') } catch { return {} }
 }
 
 function readTheme(): Theme {
@@ -68,6 +74,18 @@ interface AppState {
   clearCheck: (id: string) => void
   signWalkaround: (at: string) => void
   resetWalkaround: () => void
+  /** demo clocks: the operator's and the supervisor's "now" for the Copilots */
+  copilotNow: string
+  siteNow: string
+  setCopilotNow: (now: string) => void
+  setSiteNow: (now: string) => void
+  insightState: Record<string, InsightState>
+  setInsightState: (id: string, state: InsightState | null) => void
+  /** machines named by the Site Copilot item the supervisor is looking at */
+  highlight: string[]
+  siteDetailsOpen: boolean
+  focusMachines: (ids: string[]) => void
+  setSiteDetailsOpen: (open: boolean) => void
 }
 
 export const useApp = create<AppState>((set) => ({
@@ -114,4 +132,20 @@ export const useApp = create<AppState>((set) => ({
   }),
   signWalkaround: (signedAt) => set((s) => ({ walkaround: { ...s.walkaround, signedAt } })),
   resetWalkaround: () => set({ walkaround: { results: {}, signedAt: null } }),
+  copilotNow: '07:00',
+  siteNow: '13:30',
+  setCopilotNow: (copilotNow) => set({ copilotNow }),
+  setSiteNow: (siteNow) => set({ siteNow }),
+  insightState: readInsightState(),
+  setInsightState: (id, state) => set((s) => {
+    const next = { ...s.insightState }
+    if (state) next[id] = state
+    else delete next[id]
+    try { localStorage.setItem(INSIGHT_KEY, JSON.stringify(next)) } catch { /* private mode: state lasts for this session */ }
+    return { insightState: next }
+  }),
+  highlight: [],
+  siteDetailsOpen: false,
+  focusMachines: (ids) => set((s) => ({ highlight: ids, siteDetailsOpen: true, selectedMachine: ids[0] ?? s.selectedMachine })),
+  setSiteDetailsOpen: (siteDetailsOpen) => set({ siteDetailsOpen }),
 }))

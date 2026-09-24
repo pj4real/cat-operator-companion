@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Cable, ChevronRight, ListChecks, Play, Sun, Users, Zap, type LucideIcon } from 'lucide-react'
+import { Cable, ChevronRight, Compass, ListChecks, Play, Sun, Users, Zap, type LucideIcon } from 'lucide-react'
 import { speak, stopSpeaking } from '@/lib/voice'
 import { operator, tasks, briefing } from '@/data/demo'
+import { useInsights } from '@/hooks/queries'
+import type { Insight } from '@/types'
 import { cn, firstName } from '@/lib/utils'
 import { BriefingOrb } from './BriefingOrb'
 
@@ -9,7 +11,7 @@ const ICONS = { cable: Cable, zap: Zap, users: Users, sun: Sun }
 
 interface Beat { speech: string; caption: string; chip?: { icon: LucideIcon; text: string } }
 
-function buildBeats(): Beat[] {
+function buildBeats(copilot: Insight[]): Beat[] {
   const first = firstName(operator.name)
   const beats: Beat[] = [
     { speech: `Namaste, ${first}. Good morning.`, caption: `Namaste, ${first}.` },
@@ -19,6 +21,12 @@ function buildBeats(): Beat[] {
       chip: { icon: ListChecks, text: `${tasks.length} tasks today` },
     },
   ]
+  // the Shift Copilot's top 3 come first: the few things that matter, not everything
+  const top = copilot.filter((i) => i.kind !== 'well_done').slice(0, 3)
+  if (top.length) {
+    beats.push({ speech: `${top.length} things first.`, caption: `${top.length} things first.` })
+    top.forEach((i) => beats.push({ speech: `${i.title}. ${i.why}.`, caption: i.title, chip: { icon: Compass, text: i.title } }))
+  }
   briefing.forEach((b) => beats.push({ speech: b.text, caption: b.text, chip: { icon: ICONS[b.icon], text: b.text.split('.')[0] } }))
   beats.push({ speech: `Here's your full dashboard, with live time estimates for each task.`, caption: `Have a safe shift.` })
   return beats
@@ -85,7 +93,8 @@ const rise = (delay: number) => ({ animation: `rise-in 1400ms var(--ease-out) ${
  * so it waits for a tap rather than autoplaying.
  */
 export function AssistantIntro({ onFinish }: { onFinish: () => void }) {
-  const beats = useMemo(buildBeats, [])
+  const { data } = useInsights('07:00')
+  const beats = useMemo(() => buildBeats(data?.insights ?? []), [data])
   const [phase, setPhase] = useState<'ready' | 'running' | 'leaving'>('ready')
   const [index, setIndex] = useState(0)
   const [speaking, setSpeaking] = useState(false)

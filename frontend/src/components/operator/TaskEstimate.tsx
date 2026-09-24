@@ -1,16 +1,23 @@
 import { useState } from 'react'
 import { ChevronDown, FlaskConical, RotateCcw, Square, Volume2 } from 'lucide-react'
-import type { Skill, Soil, Task, TaskInput, Weather } from '@/types'
+import type { Insight, Skill, Soil, Task, TaskInput, Weather } from '@/types'
+import { KIND } from '@/components/shared/CopilotList'
 import { useTaskPrediction } from '@/hooks/queries'
 import { speak, stopSpeaking } from '@/lib/voice'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/controls'
-import { ModelStatus, type Tone } from '@/components/ui/status'
+import { ModelStatus, StatusBadge, type Tone } from '@/components/ui/status'
 
 const WEATHER: Weather[] = ['Sunny', 'Cloudy', 'Rainy', 'Windy']
 const SKILL: Skill[] = ['Beginner', 'Intermediate', 'Expert']
 const SOIL: Soil[] = ['Sand', 'Loam', 'Clay', 'Rock']
+
+// short labels for Copilot items shown on a task row (the full item is in the Copilot)
+const MARKER: Record<string, string> = {
+  'zone-hazards': 'Hazards in this zone', 'yesterday-here': "Yesterday's near-miss here",
+  'refuel-slot': 'Refuel before this task', 'weather-task-time': 'Rain adds time',
+}
 
 /** P10–P90 band, P50 tick and the planner's number on one scale. */
 function RangeBar({ p10, p50, p90, planner }: { p10: number; p50: number; p90: number; planner: number }) {
@@ -54,7 +61,7 @@ function planTone(p50: number, planner: number): Tone {
   return 'good'
 }
 
-export function TaskEstimate({ task }: { task: Task }) {
+export function TaskEstimate({ task, notes = [] }: { task: Task; notes?: Insight[] }) {
   const [override, setOverride] = useState<Partial<TaskInput>>({})
   const [open, setOpen] = useState(false)
   const [speaking, setSpeaking] = useState(false)
@@ -94,6 +101,15 @@ export function TaskEstimate({ task }: { task: Task }) {
             {top ? reasonText(top) : `Zone ${task.zone}`}
             {task.note && <> · {task.note}</>}
           </span>
+          {notes.length > 0 && (
+            <span className="mt-1.5 flex flex-wrap gap-1.5" aria-label="From the Shift Copilot">
+              {notes.map((n) => (
+                <span key={n.id} title={`${n.title}. ${n.why}`}>
+                  <StatusBadge tone={KIND[n.kind].tone} size="sm">{MARKER[n.rule] ?? n.title}</StatusBadge>
+                </span>
+              ))}
+            </span>
+          )}
         </span>
         <span className="text-right">
           <span className={cn('block font-display text-[30px] leading-none font-semibold text-fg transition-opacity', isFetching && 'opacity-50')}>
