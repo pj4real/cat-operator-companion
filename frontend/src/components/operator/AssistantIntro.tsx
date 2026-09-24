@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
-import { Cable, ChevronRight, ListChecks, Sun, Users, Zap, type LucideIcon } from 'lucide-react'
+import { Cable, ChevronRight, Compass, ListChecks, Sun, Users, Zap, type LucideIcon } from 'lucide-react'
 import { speak, stopSpeaking } from '@/lib/voice'
 import { operator, tasks, briefing } from '@/data/demo'
+import { useInsights } from '@/hooks/queries'
+import type { Insight } from '@/types'
 import { firstName } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -12,7 +14,7 @@ const ICONS = { cable: Cable, zap: Zap, users: Users, sun: Sun }
 
 interface Beat { speech: string; caption: string; chip?: { icon: LucideIcon; text: string }; final?: boolean }
 
-function buildBeats(): Beat[] {
+function buildBeats(copilot: Insight[]): Beat[] {
   const first = firstName(operator.name)
   const beats: Beat[] = [
     { speech: `Namaste, ${first}. Good morning.`, caption: `Namaste, ${first}.` },
@@ -22,6 +24,12 @@ function buildBeats(): Beat[] {
       chip: { icon: ListChecks, text: `${tasks.length} tasks today` },
     },
   ]
+  // the Shift Copilot's top 3 come first: the few things that matter, not everything
+  const top = copilot.filter((i) => i.kind !== 'well_done').slice(0, 3)
+  if (top.length) {
+    beats.push({ speech: `${top.length} things first.`, caption: `${top.length} things first.` })
+    top.forEach((i) => beats.push({ speech: `${i.title}. ${i.why}.`, caption: i.title, chip: { icon: Compass, text: i.title } }))
+  }
   briefing.forEach((b) => beats.push({ speech: b.text, caption: b.text, chip: { icon: ICONS[b.icon], text: b.text.split('.')[0] } }))
   beats.push({ speech: `Here's your full dashboard, with live time estimates for each task.`, caption: `Here's your dashboard.`, final: true })
   return beats
@@ -33,7 +41,8 @@ function buildBeats(): Beat[] {
  * allowed more motion than the working screens.
  */
 export function AssistantIntro({ onFinish }: { onFinish: () => void }) {
-  const beats = useMemo(buildBeats, [])
+  const { data } = useInsights('07:00')
+  const beats = useMemo(() => buildBeats(data?.insights ?? []), [data])
   const [phase, setPhase] = useState<'ready' | 'running'>('ready')
   const [index, setIndex] = useState(0)
   const [active, setActive] = useState(false)

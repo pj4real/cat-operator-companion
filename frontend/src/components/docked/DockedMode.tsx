@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { toast } from 'sonner'
 import {
-  ArrowDownToLine, ArrowUpToLine, CircleDashed, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
+  ArrowDownToLine, ArrowUpToLine, CircleDashed, Compass, Eye, EyeOff, Fuel, Gauge, Mic, OctagonAlert, Power, ShieldAlert, ShieldCheck,
   Thermometer, Timer, TriangleAlert, Truck, Unplug, UserRound, Armchair, type LucideIcon,
 } from 'lucide-react'
 import SiteScene from './SiteScene'
@@ -20,6 +20,8 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ModelStatus, StatusBadge } from '@/components/ui/status'
 import { TONE_TEXT, type Tone } from '@/lib/tones'
 import { TelemetryTable } from '@/components/shared/TelemetryTable'
+import { useInsights } from '@/hooks/queries'
+import { nextAction } from '@/lib/liveInsights'
 
 const IDLE_TEXT: Record<string, string> = {
   waiting_for_truck: 'Waiting for truck',
@@ -234,6 +236,21 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
   }
   const engineOn = () => { sim.engineOn = true; logEvent(sim, 'ok', 'Engine started, truck arriving') }
 
+  // next best action: one item, from the live sim first, then the Shift Copilot's day plan
+  const { data: day } = useInsights('09:00')
+  const [acked, setAcked] = useState<Set<string>>(() => new Set())
+  const [clockH, clockM] = siteClock(snap).split(':').map(Number)
+  const next = nextAction(
+    { haltReason: snap.haltReason, seatbelt: snap.seatbelt, engineOn: snap.engineOn, working: snap.working,
+      truckPresent: snap.truckPresent, etaMin, clockMin: clockH * 60 + clockM },
+    [...(day?.insights ?? []), ...(day?.more ?? [])], acked)
+  const runNext = () => {
+    if (!next?.button) return
+    if (next.button.action === 'engine_off') engineOff()
+    else if (next.button.action === 'fasten') fasten()
+    else setAcked((a) => new Set(a).add(next.id))
+  }
+
   const startVoice = useCallback(() => {
     if (listening) return
     type SR = { lang: string; onresult: (e: { results: { 0: { 0: { transcript: string } } } }) => void; onerror: () => void; start: () => void }
@@ -366,6 +383,27 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
 
         {/* right rail */}
         <aside aria-label="Machine data" className="flex w-[380px] shrink-0 flex-col gap-3 overflow-y-auto scrollbar-thin border-l border-border bg-surface p-3">
+          <section aria-live="polite" className={cn('rounded-md border p-3.5',
+            next?.tone === 'critical' ? 'border-critical bg-critical-soft' : next?.tone === 'warning' ? 'border-warning bg-warning-soft' : 'border-border bg-surface-2')}>
+            <header className="mb-1.5 flex items-center gap-2">
+              <Compass size={15} className="text-fg-3" aria-hidden />
+              <h2 className="label-caps text-fg-2">Next best action</h2>
+            </header>
+            {next ? (
+              <>
+                <div className={cn('font-display text-[22px] leading-tight font-bold', TONE_TEXT[next.tone])}>{next.title}</div>
+                <p className="mt-1 text-[14px] leading-snug text-fg-2">{next.why}</p>
+                {next.button && (
+                  <Button variant={next.button.action === 'fasten' ? 'success' : next.button.action === 'engine_off' ? 'primary' : 'secondary'}
+                    size="lg" className="mt-3 w-full" onClick={runNext}>
+                    {next.button.action === 'engine_off' && <Power size={18} />}{next.button.label}
+                  </Button>
+                )}
+              </>
+            ) : (
+              <p className="text-[15px] text-fg-2">Nothing needs you right now. Keep working.</p>
+            )}
+          </section>
           <div className="grid grid-cols-2 gap-2">
             <GaugeTile icon={Fuel} label="Fuel" value={machine.fuelPct} unit="%" pct={machine.fuelPct} barClass={machine.fuelPct < 25 ? 'bg-serious' : 'bg-good'} />
             <GaugeTile icon={Gauge} label="Engine" value={rpm} unit="rpm" pct={(rpm / 2200) * 100} barClass="bg-s1" valueClass={snap.engineOn ? '' : 'text-fg-3'} />
@@ -384,11 +422,6 @@ export function DockedMode({ sim, onUndock }: { sim: Sim; onUndock: () => void }
                 <span className="font-mono text-xs text-fg-3">{Math.round(idle.confidence * 100)}%</span>
                 <ModelStatus live={idle.live} className="ml-2" />
               </div>
-            )}
-            {isIdle && idle && etaMin > 3 && (
-              <Button variant="primary" size="lg" className="mt-3 w-full" onClick={engineOff}>
-                <Power size={18} /> Next truck in {etaMin.toFixed(0)} min · switch off
-              </Button>
             )}
             {!snap.engineOn && (
               <Button variant="success" size="lg" className="mt-3 w-full" onClick={engineOn}>

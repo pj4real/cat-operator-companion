@@ -1,0 +1,1288 @@
+{
+ "07:00": {
+  "now": "07:00",
+  "operator_id": "OP1001",
+  "insights": [
+   {
+    "id": "walkaround-first:EXC001",
+    "rule": "walkaround-first",
+    "kind": "act_now",
+    "title": "Check air filter and intake hoses",
+    "why": "Silicon in oil 24 ppm (usual 8), and T101 is dusty trenching in clay",
+    "when": "Before start",
+    "at_min": 420,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Machine health model"
+     },
+     {
+      "kind": "machine",
+      "label": "S·O·S oil sample"
+     },
+     {
+      "kind": "plan",
+      "label": "Task T101"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Failure risk, 50 h",
+      "value": "46%"
+     },
+     {
+      "label": "Silicon in oil",
+      "value": "24 ppm (usual 8)"
+     }
+    ],
+    "action": {
+     "label": "Hear it",
+     "type": "play_voice"
+    },
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 100.0
+   },
+   {
+    "id": "zone-hazards:T101",
+    "rule": "zone-hazards",
+    "kind": "heads_up",
+    "title": "Zone B: fibre line at 1.2 m and 2 new workers (day 3) where you work",
+    "why": "T101 starts at 07:30 in Zone B. Depth limit 0.9 m is set. New workers wear a green ring on the map",
+    "when": "07:30",
+    "at_min": 450,
+    "sources": [
+     {
+      "kind": "site",
+      "label": "Call Before u Dig / site hazards"
+     },
+     {
+      "kind": "site",
+      "label": "New workers list"
+     },
+     {
+      "kind": "plan",
+      "label": "Task T101"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Fibre line at 1.2 m",
+      "value": "depth limit 0.9 m is set"
+     },
+     {
+      "label": "2 new workers (day 3)",
+      "value": "new workers wear a green ring on the map"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": "T101",
+    "zone": "B",
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 60.0
+   },
+   {
+    "id": "refuel-slot:EXC001",
+    "rule": "refuel-slot",
+    "kind": "plan_ahead",
+    "title": "Refuel during the heat rest",
+    "why": "Tank hits reserve ~14:43, before T103 at 14:30. You are parked 13:00–13:40 anyway",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Fuel-rate model"
+     },
+     {
+      "kind": "model",
+      "label": "Task-time model"
+     },
+     {
+      "kind": "machine",
+      "label": "Fuel level"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Fuel now",
+      "value": "78 L"
+     },
+     {
+      "label": "Planned today",
+      "value": "71 L"
+     },
+     {
+      "label": "Hits reserve",
+      "value": "~14:43"
+     }
+    ],
+    "action": {
+     "label": "Add refuel stop",
+     "type": "refuel_stop"
+    },
+    "confidence": 1.0,
+    "task_id": "T103",
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 49.0
+   },
+   {
+    "id": "joystick:EXC001",
+    "rule": "joystick",
+    "kind": "heads_up",
+    "title": "Switch the joystick to ISO when you dock",
+    "why": "This machine is set to SAE; you run ISO. On rentals like this your harsh swings rise 43%",
+    "when": "At dock",
+    "at_min": 420,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Machine settings (J1939)"
+     },
+     {
+      "kind": "history",
+      "label": "Your operator profile"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Machine",
+      "value": "SAE"
+     },
+     {
+      "label": "You",
+      "value": "ISO"
+     },
+     {
+      "label": "Harsh swings on rentals",
+      "value": "1.8 vs 1.2 /h (190 h)"
+     }
+    ],
+    "action": null,
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 48.0
+   },
+   {
+    "id": "well-done:OP1001",
+    "rule": "well-done",
+    "kind": "well_done",
+    "title": "Efficiency: 10% above the excavator operators",
+    "why": "Load cycles 11.6 /h vs 12.8 for the excavator operators",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "site",
+      "label": "Site comparison"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 20.0
+   }
+  ],
+  "more": [
+   {
+    "id": "yesterday-here:T102",
+    "rule": "yesterday-here",
+    "kind": "heads_up",
+    "title": "Yesterday's near-miss was at Bay 2: agree hand signals first",
+    "why": "Near-miss with a reversing dumper at Bay 2 yesterday 10:00, and T102 is at Bay 2 today at 09:00",
+    "when": "09:00",
+    "at_min": 540,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Yesterday's events"
+     },
+     {
+      "kind": "plan",
+      "label": "Task T102"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": "T102",
+    "zone": "A",
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 45.9
+   },
+   {
+    "id": "weather-task-time:T103",
+    "rule": "weather-task-time",
+    "kind": "heads_up",
+    "title": "Grading will take ~53 min, not 42",
+    "why": "Rain 13:00–15:00 on grading adds ~5 min. Tell your supervisor now, not at 14:30",
+    "when": "14:30",
+    "at_min": 870,
+    "sources": [
+     {
+      "kind": "weather",
+      "label": "Forecast 13:00–15:00"
+     },
+     {
+      "kind": "model",
+      "label": "Task-time model"
+     },
+     {
+      "kind": "plan",
+      "label": "Task T103"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Likely",
+      "value": "47–60 min"
+     },
+     {
+      "label": "Planner",
+      "value": "42 min"
+     },
+     {
+      "label": "Weather effect",
+      "value": "+5 min"
+     }
+    ],
+    "action": {
+     "label": "Tell supervisor",
+     "type": "notify_supervisor"
+    },
+    "confidence": 1.0,
+    "task_id": "T103",
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 42.0
+   },
+   {
+    "id": "switch-off:OP1001",
+    "rule": "switch-off",
+    "kind": "habit",
+    "title": "Switch off when the next truck is more than 3 min away",
+    "why": "44% of your idle this week was waiting for trucks, and they come every ~6 min",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Idle-reason model (this week)"
+     },
+     {
+      "kind": "site",
+      "label": "Truck schedule"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Avoidable diesel",
+      "value": "~9 L/week"
+     },
+     {
+      "label": "Worth",
+      "value": "~₹824/week"
+     }
+    ],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 40.5
+   },
+   {
+    "id": "service-window:EXC001",
+    "rule": "service-window",
+    "kind": "plan_ahead",
+    "title": "Book the service for tonight",
+    "why": "Service is due in 12 engine hours and today's plan runs ~11.3 h, so it falls due early tomorrow",
+    "when": "19:00",
+    "at_min": 1140,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Service counter"
+     },
+     {
+      "kind": "plan",
+      "label": "Today's plan"
+     }
+    ],
+    "evidence": [],
+    "action": {
+     "label": "Tell supervisor",
+     "type": "notify_supervisor"
+    },
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 39.2
+   },
+   {
+    "id": "rain-habits:OP1001",
+    "rule": "rain-habits",
+    "kind": "habit",
+    "title": "Rain 13:00–15:00: belt on, engine off while waiting",
+    "why": "In rain, your belt-off time is 3.0× your usual in rain and your idle rises 52% (your own history)",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "weather",
+      "label": "Forecast 13:00–15:00"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Belt off in rain",
+      "value": "6.1 vs 2.0 min/h (80 h)"
+     },
+     {
+      "label": "Idle in rain",
+      "value": "29 vs 19 min/h (80 h)"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 31.5
+   },
+   {
+    "id": "belt-after-idle:OP1001",
+    "rule": "belt-after-idle",
+    "kind": "habit",
+    "title": "Belt first when you restart at 13:40",
+    "why": "Your belt is off in 48% of your long-idle hours, vs 9% otherwise. The heat rest is a 40-min idle, and yesterday you restarted after a long idle with the belt off at 10:35",
+    "when": "13:40",
+    "at_min": 820,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     },
+     {
+      "kind": "history",
+      "label": "Yesterday's events"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Belt off in long-idle hours",
+      "value": "48% of 50 h"
+     },
+     {
+      "label": "Other hours",
+      "value": "9%"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 31.5
+   },
+   {
+    "id": "late-slump:OP1001",
+    "rule": "late-slump",
+    "kind": "habit",
+    "title": "Use the full heat rest: engine off, shade at Bay 1",
+    "why": "Your idle creeps up 37% after hour 7, and the heat rest at 13:00 lands just before it",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Idle, hours 8–10",
+      "value": "23.6 min/h"
+     },
+     {
+      "label": "Idle, hours 1–6",
+      "value": "17.3 min/h"
+     }
+    ],
+    "action": null,
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 25.2
+   }
+  ],
+  "summary": {
+   "fuel_runs_out_at": "14:43",
+   "health_level": "watch"
+  }
+ },
+ "09:00": {
+  "now": "09:00",
+  "operator_id": "OP1001",
+  "insights": [
+   {
+    "id": "yesterday-here:T102",
+    "rule": "yesterday-here",
+    "kind": "heads_up",
+    "title": "Yesterday's near-miss was at Bay 2: agree hand signals first",
+    "why": "Near-miss with a reversing dumper at Bay 2 yesterday 10:00, and T102 is at Bay 2 today at 09:00",
+    "when": "09:00",
+    "at_min": 540,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Yesterday's events"
+     },
+     {
+      "kind": "plan",
+      "label": "Task T102"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": "T102",
+    "zone": "A",
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 54.0
+   },
+   {
+    "id": "refuel-slot:EXC001",
+    "rule": "refuel-slot",
+    "kind": "plan_ahead",
+    "title": "Refuel during the heat rest",
+    "why": "Tank hits reserve ~14:43, before T103 at 14:30. You are parked 13:00–13:40 anyway",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Fuel-rate model"
+     },
+     {
+      "kind": "model",
+      "label": "Task-time model"
+     },
+     {
+      "kind": "machine",
+      "label": "Fuel level"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Fuel now",
+      "value": "78 L"
+     },
+     {
+      "label": "Planned today",
+      "value": "71 L"
+     },
+     {
+      "label": "Hits reserve",
+      "value": "~14:43"
+     }
+    ],
+    "action": {
+     "label": "Add refuel stop",
+     "type": "refuel_stop"
+    },
+    "confidence": 1.0,
+    "task_id": "T103",
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 49.0
+   },
+   {
+    "id": "weather-task-time:T103",
+    "rule": "weather-task-time",
+    "kind": "heads_up",
+    "title": "Grading will take ~53 min, not 42",
+    "why": "Rain 13:00–15:00 on grading adds ~5 min. Tell your supervisor now, not at 14:30",
+    "when": "14:30",
+    "at_min": 870,
+    "sources": [
+     {
+      "kind": "weather",
+      "label": "Forecast 13:00–15:00"
+     },
+     {
+      "kind": "model",
+      "label": "Task-time model"
+     },
+     {
+      "kind": "plan",
+      "label": "Task T103"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Likely",
+      "value": "47–60 min"
+     },
+     {
+      "label": "Planner",
+      "value": "42 min"
+     },
+     {
+      "label": "Weather effect",
+      "value": "+5 min"
+     }
+    ],
+    "action": {
+     "label": "Tell supervisor",
+     "type": "notify_supervisor"
+    },
+    "confidence": 1.0,
+    "task_id": "T103",
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 42.0
+   },
+   {
+    "id": "switch-off:OP1001",
+    "rule": "switch-off",
+    "kind": "habit",
+    "title": "Switch off when the next truck is more than 3 min away",
+    "why": "44% of your idle this week was waiting for trucks, and they come every ~6 min",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Idle-reason model (this week)"
+     },
+     {
+      "kind": "site",
+      "label": "Truck schedule"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Avoidable diesel",
+      "value": "~9 L/week"
+     },
+     {
+      "label": "Worth",
+      "value": "~₹824/week"
+     }
+    ],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 40.5
+   },
+   {
+    "id": "well-done:OP1001",
+    "rule": "well-done",
+    "kind": "well_done",
+    "title": "Efficiency: 10% above the excavator operators",
+    "why": "Load cycles 11.6 /h vs 12.8 for the excavator operators",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "site",
+      "label": "Site comparison"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 20.0
+   }
+  ],
+  "more": [
+   {
+    "id": "service-window:EXC001",
+    "rule": "service-window",
+    "kind": "plan_ahead",
+    "title": "Book the service for tonight",
+    "why": "Service is due in 12 engine hours and today's plan runs ~9.3 h, so it falls due early tomorrow",
+    "when": "19:00",
+    "at_min": 1140,
+    "sources": [
+     {
+      "kind": "machine",
+      "label": "Service counter"
+     },
+     {
+      "kind": "plan",
+      "label": "Today's plan"
+     }
+    ],
+    "evidence": [],
+    "action": {
+     "label": "Tell supervisor",
+     "type": "notify_supervisor"
+    },
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 39.2
+   },
+   {
+    "id": "rain-habits:OP1001",
+    "rule": "rain-habits",
+    "kind": "habit",
+    "title": "Rain 13:00–15:00: belt on, engine off while waiting",
+    "why": "In rain, your belt-off time is 3.0× your usual in rain and your idle rises 52% (your own history)",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "weather",
+      "label": "Forecast 13:00–15:00"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Belt off in rain",
+      "value": "6.1 vs 2.0 min/h (80 h)"
+     },
+     {
+      "label": "Idle in rain",
+      "value": "29 vs 19 min/h (80 h)"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 31.5
+   },
+   {
+    "id": "belt-after-idle:OP1001",
+    "rule": "belt-after-idle",
+    "kind": "habit",
+    "title": "Belt first when you restart at 13:40",
+    "why": "Your belt is off in 48% of your long-idle hours, vs 9% otherwise. The heat rest is a 40-min idle, and yesterday you restarted after a long idle with the belt off at 10:35",
+    "when": "13:40",
+    "at_min": 820,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     },
+     {
+      "kind": "history",
+      "label": "Yesterday's events"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Belt off in long-idle hours",
+      "value": "48% of 50 h"
+     },
+     {
+      "label": "Other hours",
+      "value": "9%"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 31.5
+   },
+   {
+    "id": "late-slump:OP1001",
+    "rule": "late-slump",
+    "kind": "habit",
+    "title": "Use the full heat rest: engine off, shade at Bay 1",
+    "why": "Your idle creeps up 37% after hour 7, and the heat rest at 13:00 lands just before it",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Idle, hours 8–10",
+      "value": "23.6 min/h"
+     },
+     {
+      "label": "Idle, hours 1–6",
+      "value": "17.3 min/h"
+     }
+    ],
+    "action": null,
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 25.2
+   }
+  ],
+  "summary": {
+   "fuel_runs_out_at": "14:43",
+   "health_level": "watch"
+  }
+ },
+ "12:30": {
+  "now": "12:30",
+  "operator_id": "OP1001",
+  "insights": [
+   {
+    "id": "refuel-slot:EXC001",
+    "rule": "refuel-slot",
+    "kind": "plan_ahead",
+    "title": "Refuel during the heat rest",
+    "why": "Tank hits reserve ~14:43, before T103 at 14:30. You are parked 13:00–13:40 anyway",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Fuel-rate model"
+     },
+     {
+      "kind": "model",
+      "label": "Task-time model"
+     },
+     {
+      "kind": "machine",
+      "label": "Fuel level"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Fuel now",
+      "value": "78 L"
+     },
+     {
+      "label": "Planned today",
+      "value": "71 L"
+     },
+     {
+      "label": "Hits reserve",
+      "value": "~14:43"
+     }
+    ],
+    "action": {
+     "label": "Add refuel stop",
+     "type": "refuel_stop"
+    },
+    "confidence": 1.0,
+    "task_id": "T103",
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 70.0
+   },
+   {
+    "id": "weather-task-time:T103",
+    "rule": "weather-task-time",
+    "kind": "heads_up",
+    "title": "Grading will take ~53 min, not 42",
+    "why": "Rain 13:00–15:00 on grading adds ~5 min. Tell your supervisor now, not at 14:30",
+    "when": "14:30",
+    "at_min": 870,
+    "sources": [
+     {
+      "kind": "weather",
+      "label": "Forecast 13:00–15:00"
+     },
+     {
+      "kind": "model",
+      "label": "Task-time model"
+     },
+     {
+      "kind": "plan",
+      "label": "Task T103"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Likely",
+      "value": "47–60 min"
+     },
+     {
+      "label": "Planner",
+      "value": "42 min"
+     },
+     {
+      "label": "Weather effect",
+      "value": "+5 min"
+     }
+    ],
+    "action": {
+     "label": "Tell supervisor",
+     "type": "notify_supervisor"
+    },
+    "confidence": 1.0,
+    "task_id": "T103",
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 51.0
+   },
+   {
+    "id": "rain-habits:OP1001",
+    "rule": "rain-habits",
+    "kind": "habit",
+    "title": "Rain 13:00–15:00: belt on, engine off while waiting",
+    "why": "In rain, your belt-off time is 3.0× your usual in rain and your idle rises 52% (your own history)",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "weather",
+      "label": "Forecast 13:00–15:00"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Belt off in rain",
+      "value": "6.1 vs 2.0 min/h (80 h)"
+     },
+     {
+      "label": "Idle in rain",
+      "value": "29 vs 19 min/h (80 h)"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 45.0
+   },
+   {
+    "id": "switch-off:OP1001",
+    "rule": "switch-off",
+    "kind": "habit",
+    "title": "Switch off when the next truck is more than 3 min away",
+    "why": "44% of your idle this week was waiting for trucks, and they come every ~6 min",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Idle-reason model (this week)"
+     },
+     {
+      "kind": "site",
+      "label": "Truck schedule"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Avoidable diesel",
+      "value": "~9 L/week"
+     },
+     {
+      "label": "Worth",
+      "value": "~₹824/week"
+     }
+    ],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 40.5
+   },
+   {
+    "id": "well-done:OP1001",
+    "rule": "well-done",
+    "kind": "well_done",
+    "title": "Efficiency: 10% above the excavator operators",
+    "why": "Load cycles 11.6 /h vs 12.8 for the excavator operators",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "site",
+      "label": "Site comparison"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 20.0
+   }
+  ],
+  "more": [
+   {
+    "id": "belt-after-idle:OP1001",
+    "rule": "belt-after-idle",
+    "kind": "habit",
+    "title": "Belt first when you restart at 13:40",
+    "why": "Your belt is off in 48% of your long-idle hours, vs 9% otherwise. The heat rest is a 40-min idle, and yesterday you restarted after a long idle with the belt off at 10:35",
+    "when": "13:40",
+    "at_min": 820,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     },
+     {
+      "kind": "history",
+      "label": "Yesterday's events"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Belt off in long-idle hours",
+      "value": "48% of 50 h"
+     },
+     {
+      "label": "Other hours",
+      "value": "9%"
+     }
+    ],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 38.2
+   },
+   {
+    "id": "late-slump:OP1001",
+    "rule": "late-slump",
+    "kind": "habit",
+    "title": "Use the full heat rest: engine off, shade at Bay 1",
+    "why": "Your idle creeps up 37% after hour 7, and the heat rest at 13:00 lands just before it",
+    "when": "13:00",
+    "at_min": 780,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "plan",
+      "label": "Heat rest"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Idle, hours 8–10",
+      "value": "23.6 min/h"
+     },
+     {
+      "label": "Idle, hours 1–6",
+      "value": "17.3 min/h"
+     }
+    ],
+    "action": null,
+    "confidence": 0.8,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": false,
+    "score": 36.0
+   }
+  ],
+  "summary": {
+   "fuel_runs_out_at": "14:43",
+   "health_level": "watch"
+  }
+ },
+ "15:30": {
+  "now": "15:30",
+  "operator_id": "OP1001",
+  "insights": [
+   {
+    "id": "switch-off:OP1001",
+    "rule": "switch-off",
+    "kind": "habit",
+    "title": "Switch off when the next truck is more than 3 min away",
+    "why": "44% of your idle this week was waiting for trucks, and they come every ~6 min",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "model",
+      "label": "Idle-reason model (this week)"
+     },
+     {
+      "kind": "site",
+      "label": "Truck schedule"
+     }
+    ],
+    "evidence": [
+     {
+      "label": "Avoidable diesel",
+      "value": "~9 L/week"
+     },
+     {
+      "label": "Worth",
+      "value": "~₹824/week"
+     }
+    ],
+    "action": null,
+    "confidence": 0.9,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 40.5
+   },
+   {
+    "id": "well-done:OP1001",
+    "rule": "well-done",
+    "kind": "well_done",
+    "title": "Efficiency: 10% above the excavator operators",
+    "why": "Load cycles 11.6 /h vs 12.8 for the excavator operators",
+    "when": null,
+    "at_min": null,
+    "sources": [
+     {
+      "kind": "history",
+      "label": "Your digital twin"
+     },
+     {
+      "kind": "site",
+      "label": "Site comparison"
+     }
+    ],
+    "evidence": [],
+    "action": null,
+    "confidence": 1.0,
+    "task_id": null,
+    "zone": null,
+    "owner": null,
+    "machines": [],
+    "people": [],
+    "impact": null,
+    "delay": 1.0,
+    "sticky": true,
+    "score": 20.0
+   }
+  ],
+  "more": [],
+  "summary": {
+   "fuel_runs_out_at": "14:43",
+   "health_level": "watch"
+  }
+ }
+}

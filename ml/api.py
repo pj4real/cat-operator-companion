@@ -19,6 +19,7 @@ from fastapi.responses import Response
 from groq import Groq
 from pydantic import BaseModel
 
+from insights import Engine, Models
 from twin import TwinNetwork
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -334,6 +335,107 @@ def fuse_risk(hour: dict, twin: dict) -> dict:
     if twin.get("unusual") and twin.get("reasons"):
         return {"level": "caution", "reason": twin["reasons"][0]}
     return {"level": "safe", "reason": "Working as usual for this operator"}
+
+
+# ---------------------------------------------------------------- Shift Copilot / Site Copilot
+engine = Engine(Models(
+    predict_task=lambda t: predict_task(Task(**{k: t[k] for k in Task.model_fields})),
+    fuel=_fuel,
+    health=_health,
+    behaviour=lambda h: score_behaviour(HourStats(**{k: h.get(k, 0) for k in HourStats.model_fields})),
+    fuse_risk=fuse_risk,
+    twins=twins,
+), DATA)
+INBOX_LOG = DATA / "inbox.jsonl"
+FEEDBACK_LOG = DATA / "feedback.jsonl"
+
+
+class InsightTask(Task):
+    id: str
+    title: str = ""
+    zone: str = ""
+    start: str = "09:00"
+
+
+class InsightMachine(BaseModel):
+    id: str = "EXC001"
+    fuel_l: float = 78
+    tank_l: float = 345
+    pattern: str | None = None
+    rental: bool = False
+    service_due_h: float | None = None
+    health_day: HealthDay = HealthDay()
+
+
+class InsightOperator(BaseModel):
+    name: str = ""
+    usual_pattern: str = "ISO"
+    skill: str = "Intermediate"
+
+
+class OperatorInsightsRequest(BaseModel):
+    operator_id: str = "OP1001"
+    now: str = "07:00"
+    machine: InsightMachine = InsightMachine()
+    operator: InsightOperator = InsightOperator()
+    tasks: list[InsightTask] = []
+    truck_gap_min: float = 6
+    idle_week: dict | None = None
+
+
+@app.post("/insights")
+def operator_insights(req: OperatorInsightsRequest):
+    """Shift Copilot: the operator's day, joined across plan, weather, site, models and twin, ranked to 5."""
+    return engine.operator(req.model_dump())
+
+
+@app.get("/insights/site")
+def site_insights(now: str = "13:30"):
+    """Site Copilot: what needs a decision on site now, who does it and what else it affects."""
+    return engine.site(now)
+
+
+@app.get("/site-day")
+def site_day():
+    """Today's site facts (forecast, breaks, hazards): the one source both Copilots read."""
+    return engine.site_day
+
+
+class InboxMessage(BaseModel):
+    to: str  # "supervisor" or an operator id
+    sender: str  # operator id or "supervisor"
+    insight: dict
+
+
+@app.post("/inbox")
+def post_inbox(msg: InboxMessage):
+    """Operator -> supervisor ("Tell supervisor") and supervisor -> operator ("Send to operator")."""
+    item = {"id": f"m{len(engine.inbox) + 1}", "to": msg.to, "from": msg.sender, "insight": msg.insight}
+    engine.inbox.append(item)
+    with INBOX_LOG.open("a", encoding="utf8") as f:
+        f.write(json.dumps(item) + "\n")
+    return item
+
+
+@app.get("/inbox")
+def get_inbox(to: str):
+    return {"messages": engine.inbox_for(to)}
+
+
+class Feedback(BaseModel):
+    rule: str
+    person: str
+    action: Literal["done", "dismissed", "helpful"]
+
+
+@app.post("/insights/feedback")
+def insights_feedback(fb: Feedback):
+    """Done / dismissed / helpful. Rules that keep getting dismissed rank lower for that person."""
+    counts = engine.feedback.setdefault((fb.rule, fb.person), {})
+    counts[fb.action] = counts.get(fb.action, 0) + 1
+    with FEEDBACK_LOG.open("a", encoding="utf8") as f:
+        f.write(fb.model_dump_json() + "\n")
+    return {"rule": fb.rule, "person": fb.person, "counts": counts, "factor": round(engine.feedback_factor(fb.rule, fb.person), 2)}
 
 
 @app.get("/fleet")

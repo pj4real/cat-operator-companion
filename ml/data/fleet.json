@@ -64,7 +64,13 @@
         "start": "14:30",
         "title": "T103 Grade shoulder"
       }
-    ]
+    ],
+    "operator_id": "OP1001",
+    "owner": {
+      "type": "rental",
+      "name": "Sri Balaji Earthmovers"
+    },
+    "serves": []
   },
   {
     "id": "EXC004",
@@ -125,7 +131,13 @@
         "start": "13:40",
         "title": "Earth Excavation"
       }
-    ]
+    ],
+    "operator_id": "OP1007",
+    "owner": {
+      "type": "own",
+      "name": "Own fleet"
+    },
+    "serves": []
   },
   {
     "id": "WHL002",
@@ -197,7 +209,13 @@
         "start": "13:40",
         "title": "Material Loading"
       }
-    ]
+    ],
+    "operator_id": "OP1012",
+    "owner": {
+      "type": "own",
+      "name": "Own fleet"
+    },
+    "serves": []
   },
   {
     "id": "DT-03",
@@ -251,7 +269,16 @@
         "text": "Coolant temperature high"
       }
     ],
-    "tasks": []
+    "tasks": [],
+    "operator_id": "OP1021",
+    "owner": {
+      "type": "own",
+      "name": "Own fleet"
+    },
+    "serves": [
+      "EXC001",
+      "WHL002"
+    ]
   },
   {
     "id": "DT-07",
@@ -299,7 +326,16 @@
       "raised_bucket_travel": 0
     },
     "faults": [],
-    "tasks": []
+    "tasks": [],
+    "operator_id": "OP1024",
+    "owner": {
+      "type": "own",
+      "name": "Own fleet"
+    },
+    "serves": [
+      "EXC001",
+      "WHL002"
+    ]
   },
   {
     "id": "BHL-11",
@@ -366,6 +402,12 @@
         "start": "13:40",
         "title": "Trenching"
       }
-    ]
+    ],
+    "operator_id": "OP1031",
+    "owner": {
+      "type": "rental",
+      "name": "the rental company"
+    },
+    "serves": []
   }
 ]
